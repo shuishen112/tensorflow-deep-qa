@@ -10,6 +10,10 @@ I study code from these people
 
 [gan-for-qa](https://github.com/wabyking/GAN-for-QA)
 
+the embedding can be download from :
+
+[https://github.com/aseveryn/deep-qa](https://github.com/aseveryn/deep-qa)
+
 ## Requirements
 
 -python2.7
@@ -31,19 +35,10 @@ I study code from these people
 
 now the result is silly because i don't add the overlap feattures
 
--trec
-
-map | mrr
-
----- | ----
-
-0.65 | 0.65
-
--wiki(clean)
-
-map | mrr
-
-0.656 | 0.656
+| data | trec | wiki |
+| :--- | :----: | ----: |
+| trec | 0.65 | 0.65 |
+| wiki(clean) | 0.65 | 0.65  |
 
 i will add overlap soon
 
