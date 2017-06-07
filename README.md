@@ -13,8 +13,11 @@ I study code from these people
 ## Requirements
 
 -python2.7
+
 -Tensorflow > 0.12
+
 -gensim
+
 -numpy
 
 ## Training
@@ -33,9 +36,13 @@ now the result is silly because i don't add the overlap feattures
 map | mrr
 
 ---- | ----
+
 0.65 | 0.65
 
 -wiki(clean)
+
+map | mrr
+
 0.656 | 0.656
 
 i will add overlap soon
