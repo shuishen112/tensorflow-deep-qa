@@ -8,7 +8,7 @@ class QA(object):
     def __init__(
       self, max_input_left, max_input_right, vocab_size,embedding_size,batch_size,
       embeddings,dropout_keep_prob,filter_sizes, 
-      num_filters,l2_reg_lambda = 0.0, is_Embedding_Needed = False,trainable = True,is_overlap = False,pooling = 'max'):
+      num_filters,l2_reg_lambda = 0.0, is_Embedding_Needed = False,trainable = True,is_overlap = False,pooling = 'attentive'):
 
         self.question = tf.placeholder(tf.int32,[None,max_input_left],name = 'input_question')
         self.answer = tf.placeholder(tf.int32,[None,max_input_right],name = 'input_answer')
@@ -21,6 +21,8 @@ class QA(object):
         self.l2_reg_lambda = l2_reg_lambda
         self.filter_sizes = filter_sizes
         self.para = []
+        self.max_input_left = max_input_left
+        self.max_input_right = max_input_right
         self.hidden_num = 10
         # Embedding layer for both CNN
         with tf.name_scope("embedding"):
@@ -47,15 +49,40 @@ class QA(object):
         num_filters_total = num_filters * len(filter_sizes)
         q_conv = self.wide_convolution(self.embedded_chars_q)
         a_conv = self.wide_convolution(self.embedded_chars_a)
-        q_pooling = tf.reshape(self.max_pooling(q_conv,max_input_left),[-1,num_filters_total])
-        a_pooling = tf.reshape(self.max_pooling(a_conv,max_input_right),[-1,num_filters_total])
+        if pooling == 'max':
+            print pooling
+            self.q_pooling = tf.reshape(self.max_pooling(q_conv,max_input_left),[-1,num_filters_total])
+            self.a_pooling = tf.reshape(self.max_pooling(a_conv,max_input_right),[-1,num_filters_total])
+        elif pooling == 'attentive':
+            print pooling
+            with tf.name_scope('attention'):    
+                self.U = tf.Variable(tf.truncated_normal(shape = [num_filters_total,num_filters_total],stddev = 0.01,name = 'U'))
+                self.para.append(self.U)
+
+            self.q_pooling,self.a_pooling = self.attentive_pooling(q_conv,a_conv)
+            self.q_pooling = tf.reshape(self.q_pooling,[-1,num_filters_total])
+            self.a_pooling = tf.reshape(self.a_pooling,[-1,num_filters_total])
+        else:
+            print 'no pooling'
+            
+        # Compute similarity
+        with tf.name_scope("similarity"):
+            W = tf.get_variable(
+                "W",
+                shape=[num_filters_total, num_filters_total],
+                initializer=tf.contrib.layers.xavier_initializer())
+            self.transform_left = tf.matmul(self.q_pooling, W)
+            self.sims = tf.reduce_sum(tf.mul(self.transform_left, self.a_pooling), 1, keep_dims=True)
+            self.para.append(W)
+            print W
+            self.see = W
         # concat the input vector to classification task
-        self.feature = tf.concat(1,[q_pooling,a_pooling],name = 'feature')
+        self.feature = tf.concat(1,[self.q_pooling,self.sims,self.a_pooling],name = 'feature')
 
         with tf.name_scope('neural_network'):
             W = tf.get_variable(
                 "W_hidden",
-                shape=[2 * num_filters_total, self.hidden_num],
+                shape=[2 * num_filters_total + 1, self.hidden_num],
                 initializer = tf.contrib.layers.xavier_initializer())
             b = tf.Variable(tf.constant(0.0, shape = [self.hidden_num]), name = "b")
             self.para.append(W)
@@ -75,7 +102,6 @@ class QA(object):
             self.para.append(b)
             self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name = "scores")
             self.predictions = tf.argmax(self.scores, 1, name = "predictions")
-            self.see = self.scores
         l2_loss = tf.constant(0.0)
         for p in self.para:
             l2_loss += tf.nn.l2_loss(p)
@@ -97,7 +123,28 @@ class QA(object):
                     padding = 'VALID',
                     name="pool")
         return pooled
+    def attentive_pooling(self,input_left,input_right):
+        Q = tf.reshape(input_left,[self.batch_size,self.max_input_left,len(self.filter_sizes) * self.num_filters],name = 'Q')
+        A = tf.reshape(input_right,[self.batch_size,self.max_input_right,len(self.filter_sizes) * self.num_filters],name = 'A')
 
+        # G = tf.tanh(tf.matmul(tf.matmul(Q,self.U),\
+        # A,transpose_b = True),name = 'G')
+        first = tf.matmul(tf.reshape(Q,[-1,len(self.filter_sizes) * self.num_filters]),self.U)
+        second_step = tf.reshape(first,[self.batch_size,-1,len(self.filter_sizes) * self.num_filters])
+        result = tf.batch_matmul(second_step,tf.transpose(A,perm = [0,2,1]))
+        G = tf.tanh(result)
+        # column-wise pooling ,row-wise pooling
+        row_pooling = tf.reduce_max(G,1,True,name = 'row_pooling')
+        col_pooling = tf.reduce_max(G,2,True,name = 'col_pooling')
+
+        attention_q = tf.nn.softmax(col_pooling,1,name = 'attention_q')
+        attention_a = tf.nn.softmax(row_pooling,name = 'attention_a')
+
+        R_q = tf.reshape(tf.matmul(Q,attention_q,transpose_a = 1),[self.batch_size,self.num_filters * len(self.filter_sizes),-1],name = 'R_q')
+        R_a = tf.reshape(tf.matmul(attention_a,A),[self.batch_size,self.num_filters * len(self.filter_sizes),-1],name = 'R_a')
+
+        return R_q,R_a
+        
     def wide_convolution(self,embedding):
         cnn_outputs = []
         for i,filter_size in enumerate(self.filter_sizes):
@@ -154,7 +201,7 @@ if __name__ == '__main__':
             cnn.input_y:input_y
         }
        
-        question,answer,see = sess.run([cnn.question,cnn.answer,cnn.see],feed_dict)
-        print see
+        question,answer,scores = sess.run([cnn.question,cnn.answer,cnn.scores],feed_dict)
+        print scores
 
        

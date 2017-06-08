@@ -153,11 +153,10 @@ def test_point_wise():
                             cnn.answer: x_right_batch,
                             cnn.input_y: y_batch
                         }
-                        _, step,loss, accuracy,pred ,scores = sess.run(
-                        [train_op, global_step,cnn.loss, cnn.accuracy,cnn.predictions,cnn.scores],
+                        _, step,loss, accuracy,pred ,scores,see = sess.run(
+                        [train_op, global_step,cnn.loss, cnn.accuracy,cnn.predictions,cnn.scores,cnn.see],
                         feed_dict)
                         time_str = datetime.datetime.now().isoformat()
-                       
                         print("{}: step {}, loss {:g}, acc {:g}  ".format(time_str, step, loss, accuracy))
                 else:
                     for x_left_batch, x_right_batch, y_batch ,overlap in batch_gen_with_point_wise(train,alphabet,FLAGS.batch_size,overlap = FLAGS.overlap_needed,
