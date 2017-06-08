@@ -53,7 +53,7 @@ tf.flags.DEFINE_boolean("trainable", False, "is embedding trainable? (default: F
 tf.flags.DEFINE_integer("num_epochs", 500, "Number of training epochs (default: 200)")
 tf.flags.DEFINE_integer("evaluate_every", 500, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 500, "Save model after this many steps (default: 100)")
-tf.flags.DEFINE_boolean('overlap_needed',False,"is overlap used")
+tf.flags.DEFINE_boolean('overlap_needed',True,"is overlap used")
 tf.flags.DEFINE_boolean('dns','False','whether use dns or not')
 tf.flags.DEFINE_string('data','wiki','data set')
 tf.flags.DEFINE_string('CNN_type','qacnn','data set')
@@ -79,20 +79,13 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
     scores = []
     d = get_overlap_dict(test,alphabet,q_len,a_len)
     for data in batch_gen_with_single(test,alphabet,batch_size,q_len,a_len,overlap_dict = d): 
-        if FLAGS.loss ==  'point_wise':
-            feed_dict = {
-                cnn.question: data[0],
-                cnn.answer: data[1]
-            }
-            score = sess.run(cnn.scores,feed_dict)
-        else:
-            feed_dict = {
-                        cnn.question: data[0],
-                        cnn.answer: data[1],
-                        cnn.q_pos_overlap: data[2],
-                        cnn.a_pos_overlap: data[3]
-                    }
-            score = sess.run(cnn.score12, feed_dict)
+        feed_dict = {
+            cnn.question: data[0],
+            cnn.answer: data[1],
+            cnn.q_overlap:data[2],
+            cnn.a_overlap:data[3]
+        }
+        score = sess.run(cnn.scores,feed_dict)
         scores.extend(score)
     return np.array(scores[:len(test)])
 
@@ -131,7 +124,7 @@ def test_point_wise():
                 l2_reg_lambda = FLAGS.l2_reg_lambda,
                 is_Embedding_Needed = True,
                 trainable = FLAGS.trainable,
-                is_overlap = FLAGS.overlap_needed,
+                overlap_needed = FLAGS.overlap_needed,
                 pooling = FLAGS.pooling)
 
             # Define Training procedure
@@ -147,34 +140,23 @@ def test_point_wise():
             # seq_process(test, alphabet)
             map_max = 0.65
             for i in range(100):
-                if FLAGS.overlap_needed == False:
-
-                    for x_left_batch, x_right_batch, y_batch in batch_gen_with_point_wise(train,alphabet,FLAGS.batch_size,overlap = FLAGS.overlap_needed,
-                        q_len = q_max_sent_length,a_len = a_max_sent_length):
-                        feed_dict = {
-                            cnn.question: x_left_batch,
-                            cnn.answer: x_right_batch,
-                            cnn.input_y: y_batch
-                        }
-                        _, step,loss, accuracy,pred ,scores,see = sess.run(
-                        [train_op, global_step,cnn.loss, cnn.accuracy,cnn.predictions,cnn.scores,cnn.see],
-                        feed_dict)
-                        time_str = datetime.datetime.now().isoformat()
-                        print("{}: step {}, loss {:g}, acc {:g}  ".format(time_str, step, loss, accuracy))
-                else:
-                    for x_left_batch, x_right_batch, y_batch ,overlap in batch_gen_with_point_wise(train,alphabet,FLAGS.batch_size,overlap = FLAGS.overlap_needed,
-                        q_len = q_max_sent_length,a_len = a_max_sent_length):
-                        feed_dict = {
-                            cnn.question: x_left_batch,
-                            cnn.answer: x_right_batch,
-                            cnn.overlap:overlap,
-                            cnn.input_y: y_batch
-                        }
-                        _, step,loss, accuracy,pred ,scores ,see = sess.run(
-                        [train_op, global_step,cnn.loss, cnn.accuracy,cnn.predictions,cnn.scores,cnn.see],
-                        feed_dict)
-                        time_str = datetime.datetime.now().isoformat()
-                        print("{}: step {}, loss {:g}, acc {:g}  ".format(time_str, step, loss, accuracy))
+                d = get_overlap_dict(train,alphabet,q_len = q_max_sent_length,a_len = a_max_sent_length)
+                datas = batch_gen_with_point_wise(train,alphabet,FLAGS.batch_size,overlap_dict = d,
+                    q_len = q_max_sent_length,a_len = a_max_sent_length)
+                for data in datas:
+                    feed_dict = {
+                        cnn.question:data[0],
+                        cnn.answer:data[1],
+                        cnn.input_y:data[2],
+                        cnn.q_overlap:data[3],
+                        cnn.a_overlap:data[4]
+                    }
+                    _, step,loss, accuracy,pred ,scores,see = sess.run(
+                    [train_op, global_step,cnn.loss, cnn.accuracy,cnn.predictions,cnn.scores,cnn.see],
+                    feed_dict)
+                    time_str = datetime.datetime.now().isoformat()
+                    print("{}: step {}, loss {:g}, acc {:g}  ".format(time_str, step, loss, accuracy))
+                
                     # print loss
                 predicted_train = predict(sess,cnn,train,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
                 predicted = predict(sess,cnn,train,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)

@@ -97,50 +97,48 @@ def transform(flag):
 @log_time_delta
 def batch_gen_with_single(df,alphabet,batch_size = 10,q_len = 33,a_len = 40,overlap_dict = None):
     pairs=[]
+    input_num = 4
     for index,row in df.iterrows():
         quetion = encode_to_split(row["question"],alphabet,max_sentence = q_len)
         answer = encode_to_split(row["answer"],alphabet,max_sentence = a_len)
-        if overlap_dict:
-            q_pos_overlap,a_pos_overlap = overlap_index(row["question"],row["answer"],q_len,a_len)
+        if overlap_dict == None:
+            q_overlap,a_overlap = overlap_index(row["question"],row["answer"],q_len,a_len)
         else:
-            q_pos_overlap,a_pos_overlap = overlap_dict[(row["question"],row["answer"])]
-        pairs.append((quetion,answer,q_pos_overlap,a_pos_overlap))
+            q_overlap,a_overlap = overlap_dict[(row["question"],row["answer"])]
+        pairs.append((quetion,answer,q_overlap,a_overlap))
     # n_batches= int(math.ceil(df["flag"].sum()*1.0/batch_size))
     n_batches = int(len(pairs)*1.0/batch_size)
     # pairs = sklearn.utils.shuffle(pairs,random_state =132)
     for i in range(0,n_batches):
         batch = pairs[i*batch_size:(i+1) * batch_size]
 
-        yield [[pair[j] for pair in batch]  for j in range(4)]
+        yield [[pair[j] for pair in batch]  for j in range(input_num)]
     batch= pairs[n_batches*batch_size:] + [pairs[n_batches*batch_size]] * (batch_size- len(pairs)+n_batches*batch_size  )
-    yield [[pair[i] for pair in batch]  for i in range(4)]
+    yield [[pair[i] for pair in batch]  for i in range(input_num)]
 @log_time_delta
-def batch_gen_with_point_wise(df,alphabet, batch_size=10,overlap = False,q_len = 33,a_len = 40):
+def batch_gen_with_point_wise(df,alphabet, batch_size = 10,overlap_dict = None,q_len = 33,a_len = 40):
     #inputq inputa intput_y overlap
-    if overlap:
-        input_num = 4
-        print 'overlap is needed'
-    else:
-        input_num = 3
-    pairs=[]
+    input_num = 5
+    pairs = []
     for index,row in df.iterrows():
         question = encode_to_split(row["question"],alphabet,max_sentence = q_len)
         answer = encode_to_split(row["answer"],alphabet,max_sentence = a_len)
-        label = transform(row["flag"])
-        if overlap:
-            lap = overlap_jiabing(row)
-            pairs.append((question,answer,label,lap))
+        if overlap_dict == None:
+            q_overlap,a_overlap = overlap_index(row["question"],row["answer"],q_len,a_len)
         else:
-            pairs.append((question,answer,label))
+            q_overlap,a_overlap = overlap_dict[(row["question"],row["answer"])]
+
+        label = transform(row["flag"])
+        pairs.append((question,answer,label,q_overlap,a_overlap))
     # n_batches= int(math.ceil(df["flag"].sum()*1.0/batch_size))
-    n_batches= int(len(pairs)*1.0/batch_size)
+    n_batches = int(len(pairs)*1.0/batch_size)
     pairs = sklearn.utils.shuffle(pairs,random_state = 132)
 
     for i in range(0,n_batches):
         batch = pairs[i*batch_size:(i+1) * batch_size]
-        yield (np.array([pair[i] for pair in batch])  for i in range(input_num))
-    batch= pairs[n_batches*batch_size:] + [pairs[n_batches*batch_size]] * (batch_size- len(pairs)+n_batches*batch_size  )
-    yield (np.array([pair[i] for pair in batch])  for i in range(input_num))
+        yield [np.array([pair[i] for pair in batch])  for i in range(input_num)]
+    batch = pairs[n_batches*batch_size:] + [pairs[n_batches*batch_size]] * (batch_size- len(pairs)+n_batches*batch_size  )
+    yield [np.array([pair[i] for pair in batch])  for i in range(input_num)]
 # calculate the overlap_index
 def overlap_index(question,answer,q_len,a_len,stopwords = []):
     qset = set(cut(question))
