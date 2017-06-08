@@ -33,12 +33,12 @@ the embedding can be download from :
 
 ##
 
-now the result is silly because i don't add the overlap feattures
-
-| data | trec | wiki |
+now the result is silly because i don't add the overlap features
+and i don't think the similarity layer promote the result
+| data | map | mrr |
 | :--- | :----: | ----: |
 | trec | 0.65 | 0.65 |
-| wiki(clean) | 0.65 | 0.65  |
+| wiki(clean) | 0.658 | 0.67  |
 
 i will add overlap soon
 
