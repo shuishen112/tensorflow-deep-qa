@@ -34,7 +34,9 @@ the embedding can be download from :
 ##
 
 now the result is silly because i don't add the overlap features
+
 and i don't think the similarity layer promote the result
+
 | data | map | mrr |
 | :--- | :----: | ----: |
 | trec | 0.65 | 0.65 |
