@@ -59,6 +59,7 @@ tf.flags.DEFINE_string('data','wiki','data set')
 tf.flags.DEFINE_string('CNN_type','qacnn','data set')
 tf.flags.DEFINE_float('sample_train',1,'sampe my train data')
 tf.flags.DEFINE_boolean('fresh',True,'wheather recalculate the embedding or overlap default is True')
+tf.flags.DEFINE_string('pooling','max','pooling strategy')
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
 tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
@@ -130,10 +131,11 @@ def test_point_wise():
                 l2_reg_lambda = FLAGS.l2_reg_lambda,
                 is_Embedding_Needed = True,
                 trainable = FLAGS.trainable,
-                is_overlap = FLAGS.overlap_needed)
+                is_overlap = FLAGS.overlap_needed,
+                pooling = FLAGS.pooling)
 
             # Define Training procedure
-            global_step = tf.Variable(0, name="global_step", trainable = False)
+            global_step = tf.Variable(0, name = "global_step", trainable = False)
             optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
             grads_and_vars = optimizer.compute_gradients(cnn.loss)
             train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
@@ -143,6 +145,7 @@ def test_point_wise():
 
             # seq_process(train, alphabet)
             # seq_process(test, alphabet)
+            map_max = 0.65
             for i in range(100):
                 if FLAGS.overlap_needed == False:
 
@@ -178,6 +181,16 @@ def test_point_wise():
                 map_mrr_train = evaluation.evaluationBypandas(train,predicted[:,-1])
                 predicted = predict(sess,cnn,test,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
                 map_mrr_test = evaluation.evaluationBypandas(test,predicted[:,-1])
+
+                if map_mrr_test[0] > map_max:
+                        map_max = map_mrr_test[0]
+                        timeStamp = time.strftime("%Y%m%d%H%M%S", time.localtime(int(time.time())))
+                        folder = 'runs/' + timeDay
+                        out_dir = folder +'/'+timeStamp+'__'+FLAGS.data+str(map_mrr_test[0])
+                        if not os.path.exists(folder):
+                            os.makedirs(folder)
+                        save_path = saver.save(sess, out_dir)
+                        print "Model saved in file: ", save_path
                 # predicted = predict(sess,cnn,dev,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
                 # map_mrr_dev = evaluation.evaluationBypandas(dev,predicted[:,-1])
                 # map_mrr_train = evaluation.evaluationBypandas(train,predicted_train[:,-1])

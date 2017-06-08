@@ -8,7 +8,7 @@ class QA(object):
     def __init__(
       self, max_input_left, max_input_right, vocab_size,embedding_size,batch_size,
       embeddings,dropout_keep_prob,filter_sizes, 
-      num_filters,l2_reg_lambda = 0.0, is_Embedding_Needed = False,trainable = True,is_overlap = False,pooling = 'attentive'):
+      num_filters,l2_reg_lambda = 0.0, is_Embedding_Needed = False,trainable = True,is_overlap = False,pooling = 'max'):
 
         self.question = tf.placeholder(tf.int32,[None,max_input_left],name = 'input_question')
         self.answer = tf.placeholder(tf.int32,[None,max_input_right],name = 'input_answer')
