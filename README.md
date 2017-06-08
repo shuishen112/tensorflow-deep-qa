@@ -44,5 +44,14 @@ and i don't think the similarity layer promote the result
 
 i will add overlap soon
 
+when a add overlap feature as embedding
+
+we can get the result
+
+| data | map | mrr |
+| :--- | :----: | ----: |
+| trec | 0.747 | 0.74 |
+| wiki(clean) | 0.68 | 0.68  |
+
 
 
