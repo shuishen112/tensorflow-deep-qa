@@ -95,8 +95,10 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
 
 @log_time_delta
 def test_point_wise():
-    train,test,dev = load(FLAGS.data,filter = True)
-
+    train,test,dev = load(FLAGS.data,filter = False)
+    train = train.fillna('')
+    test = test.fillna('')
+    dev = dev.fillna('')
     q_max_sent_length = 40#max(map(lambda x:len(x),train['question'].str.split()))
     a_max_sent_length = 75#max(map(lambda x:len(x),train['answer'].str.split()))
     # train = train[:1000]
@@ -146,7 +148,7 @@ def test_point_wise():
             optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
             grads_and_vars = optimizer.compute_gradients(cnn.loss)
             train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
-            saver = tf.train.Saver(tf.all_variables(), max_to_keep=20)
+            saver = tf.train.Saver(tf.global_variables(), max_to_keep=20)
             # Initialize all variables
             sess.run(tf.global_variables_initializer())
 
@@ -191,7 +193,7 @@ def test_point_wise():
                 # map_mrr_dev = evaluation.evaluationBypandas(dev,predicted[:,-1])
                 # map_mrr_train = evaluation.evaluationBypandas(train,predicted_train[:,-1])
                 # print evaluation.evaluationBypandas(train,predicted_train[:,-1])
-                print "{}:train epoch:map mrr {}".format(i,map_mrr_train)
+                # print "{}:train epoch:map mrr {}".format(i,map_mrr_train)
                 print "{}:test epoch:map mrr {}".format(i,map_mrr_test)
                 # print "{}:dev epoch:map mrr {}".format(i,map_mrr_dev)
                 # line = " {}:epoch: map_train{}----map_test{}----map_dev{}".format(i,map_mrr_train[0],map_mrr_test[0],map_mrr_dev[0])
