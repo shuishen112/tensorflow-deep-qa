@@ -21,10 +21,12 @@ import re
 dataset = 'trec'
 UNKNOWN_WORD_IDX = 0
 from functools import wraps
-isEnglish = True
+isEnglish = False
 
 if isEnglish:
     stopwords = stopwords.words('english')
+else:
+    stopwords = { word.decode("utf-8") for word in open("model/chStopWordsSimple.txt").read().split()}
 def log_time_delta(func):
     @wraps(func)
     def _deco(*args, **kwargs):

@@ -37,7 +37,7 @@ def log_time_delta(func):
 
 
 # Model Hyperparameters
-tf.flags.DEFINE_integer("embedding_dim",50, "Dimensionality of character embedding (default: 128)")
+tf.flags.DEFINE_integer("embedding_dim",300, "Dimensionality of character embedding (default: 128)")
 tf.flags.DEFINE_string("filter_sizes", "1,2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
 tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
 tf.flags.DEFINE_float("dropout_keep_prob", 1, "Dropout keep probability (default: 0.5)")
@@ -46,7 +46,7 @@ tf.flags.DEFINE_float("learning_rate", 1e-3, "learn rate( default: 0.0)")
 tf.flags.DEFINE_integer("max_len_left", 40, "max document length of left input")
 tf.flags.DEFINE_integer("max_len_right", 40, "max document length of right input")
 tf.flags.DEFINE_string("loss","point_wise","loss function (default:point_wise)")
-tf.flags.DEFINE_integer('extend_feature_dim',5,'overlap_feature_dim')
+tf.flags.DEFINE_integer('extend_feature_dim',10,'overlap_feature_dim')
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
 tf.flags.DEFINE_boolean("trainable", False, "is embedding trainable? (default: False)")
@@ -55,7 +55,7 @@ tf.flags.DEFINE_integer("evaluate_every", 500, "Evaluate model on dev set after 
 tf.flags.DEFINE_integer("checkpoint_every", 500, "Save model after this many steps (default: 100)")
 tf.flags.DEFINE_boolean('overlap_needed',True,"is overlap used")
 tf.flags.DEFINE_boolean('dns','False','whether use dns or not')
-tf.flags.DEFINE_string('data','wiki','data set')
+tf.flags.DEFINE_string('data','nlpcc','data set')
 tf.flags.DEFINE_string('CNN_type','qacnn','data set')
 tf.flags.DEFINE_float('sample_train',1,'sampe my train data')
 tf.flags.DEFINE_boolean('fresh',True,'wheather recalculate the embedding or overlap default is True')
@@ -96,8 +96,12 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
 @log_time_delta
 def test_point_wise():
     train,test,dev = load(FLAGS.data,filter = True)
-    q_max_sent_length = max(map(lambda x:len(x),train['question'].str.split()))
-    a_max_sent_length = max(map(lambda x:len(x),train['answer'].str.split()))
+
+    q_max_sent_length = 40#max(map(lambda x:len(x),train['question'].str.split()))
+    a_max_sent_length = 75#max(map(lambda x:len(x),train['answer'].str.split()))
+    # train = train[:1000]
+    # test = test[:1000]
+    # dev = dev[:1000]
     print 'train question unique:{}'.format(len(train['question'].unique()))
     print 'train length',len(train)
     print 'test length', len(test)
@@ -168,9 +172,9 @@ def test_point_wise():
                     print("{}: step {}, loss {:g}, acc {:g}  ".format(time_str, step, loss, accuracy))
                 
                     # print loss
-                predicted_train = predict(sess,cnn,train,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
-                predicted = predict(sess,cnn,train,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
-                map_mrr_train = evaluation.evaluationBypandas(train,predicted[:,-1])
+                
+                # predicted = predict(sess,cnn,train,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
+                # map_mrr_train = evaluation.evaluationBypandas(train,predicted[:,-1])
                 predicted = predict(sess,cnn,test,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
                 map_mrr_test = evaluation.evaluationBypandas(test,predicted[:,-1])
 
