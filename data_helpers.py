@@ -15,21 +15,16 @@ import string
 import jieba
 from nltk import stem
 from tqdm import tqdm
+from nltk.corpus import stopwords
 import chardet
 import re
 dataset = 'trec'
-PUNCT = set(string.punctuation) - set('$%#')
-print PUNCT
-
 UNKNOWN_WORD_IDX = 0
-# names = {word for word in open('names.txt').read().split()}
 from functools import wraps
-#w2v=models.word2vec.Word2Vec.load("embedding.txt")
-#print( tf.__version__)
-is_stemmed_needed = False
 isEnglish = True
-if is_stemmed_needed:
-    stemmer = stem.lancaster.LancasterStemmer()
+
+if isEnglish:
+    stopwords = stopwords.words('english')
 def log_time_delta(func):
     @wraps(func)
     def _deco(*args, **kwargs):
@@ -80,11 +75,7 @@ def load_text_vec(alphabet,filename="",embedding_size = 100):
     return vectors
 def encode_to_split(sentence,alphabet,max_sentence = 40):
     indices = []
-    if is_stemmed_needed:
-        tokens = [stemmer.stem(w.decode('utf-8')) for w in sentence.strip().lower().split() if w not in PUNCT]
-    else:
-        # tokens = [w for w in sentence.strip().lower().split() if w not in PUNCT]
-        tokens = cut(sentence)
+    tokens = cut(sentence)
     for word in tokens:
         indices.append(alphabet[word])
     results=indices+[alphabet["END"]]*(max_sentence-len(indices))
@@ -107,7 +98,7 @@ def batch_gen_with_single(df,alphabet,batch_size = 10,q_len = 33,a_len = 40,over
             q_overlap,a_overlap = overlap_dict[(row["question"],row["answer"])]
         pairs.append((quetion,answer,q_overlap,a_overlap))
     # n_batches= int(math.ceil(df["flag"].sum()*1.0/batch_size))
-    n_batches = int(len(pairs)*1.0/batch_size)
+    n_batches = int(len(pairs)*1.0 / batch_size)
     # pairs = sklearn.utils.shuffle(pairs,random_state =132)
     for i in range(0,n_batches):
         batch = pairs[i*batch_size:(i+1) * batch_size]
@@ -131,7 +122,7 @@ def batch_gen_with_point_wise(df,alphabet, batch_size = 10,overlap_dict = None,q
         label = transform(row["flag"])
         pairs.append((question,answer,label,q_overlap,a_overlap))
     # n_batches= int(math.ceil(df["flag"].sum()*1.0/batch_size))
-    n_batches = int(len(pairs)*1.0/batch_size)
+    n_batches = int(len(pairs)*1.0 / batch_size)
     pairs = sklearn.utils.shuffle(pairs,random_state = 132)
 
     for i in range(0,n_batches):
@@ -279,7 +270,8 @@ def getSubVectors(vectors,vocab,dim = 50):
     return embedding
 def cut(sentence,isEnglish = isEnglish):
     if isEnglish:
-        tokens = sentence.lower().split()
+        words = sentence.lower().split()
+        tokens = [word for word in words]
     else:
         # words = jieba.cut(str(sentence))
         tokens = [word for word in sentence.split() if word not in stopwords]
@@ -320,15 +312,7 @@ def prepare(cropuses,is_embedding_needed = False,dim = 50,fresh = False):
                     tokens = cut(sentence)
                     # print "#".join(tokens)
                     for token in set(tokens):
-                        if is_stemmed_needed:
-                            # try:
-                            alphabet.add(stemmer.stem(token.decode('utf-8')))
-                            # except Exception as e:
-                            #     alphabet.add(token)
-                            #     print type(e)
-                            
-                        else:
-                            alphabet.add(token)
+                        alphabet.add(token)
         print len(alphabet.keys())
         pickle.dump(alphabet,open(vocab_file,'w'))
     if is_embedding_needed:

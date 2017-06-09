@@ -46,7 +46,7 @@ tf.flags.DEFINE_float("learning_rate", 1e-3, "learn rate( default: 0.0)")
 tf.flags.DEFINE_integer("max_len_left", 40, "max document length of left input")
 tf.flags.DEFINE_integer("max_len_right", 40, "max document length of right input")
 tf.flags.DEFINE_string("loss","point_wise","loss function (default:point_wise)")
-tf.flags.DEFINE_integer('extend_feature_dim',10,'overlap_feature_dim')
+tf.flags.DEFINE_integer('extend_feature_dim',5,'overlap_feature_dim')
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
 tf.flags.DEFINE_boolean("trainable", False, "is embedding trainable? (default: False)")
@@ -60,6 +60,7 @@ tf.flags.DEFINE_string('CNN_type','qacnn','data set')
 tf.flags.DEFINE_float('sample_train',1,'sampe my train data')
 tf.flags.DEFINE_boolean('fresh',True,'wheather recalculate the embedding or overlap default is True')
 tf.flags.DEFINE_string('pooling','max','pooling strategy')
+tf.flags.DEFINE_boolean('clean',True,'whether clean the data')
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
 tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
@@ -67,13 +68,16 @@ tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on 
 FLAGS = tf.flags.FLAGS
 FLAGS._parse_flags()
 print("\nParameters:")
-print FLAGS.__flags
+for attr, value in sorted(FLAGS.__flags.items()):
+    print(("{}={}".format(attr.upper(), value)))
 log_dir = 'log/'+ timeDay
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 data_file = log_dir + '/test_' + FLAGS.data + timeStamp
+para_file = log_dir + '/test_' + FLAGS.data + timeStamp + '_para'
 precision = data_file + 'precise'
 
+pickle.dump(FLAGS.__flags,open(para_file,'w'))
 @log_time_delta
 def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
     scores = []
@@ -102,10 +106,15 @@ def test_point_wise():
     alphabet,embeddings = prepare([train,test,dev],dim = FLAGS.embedding_dim,is_embedding_needed = True,fresh = True)
     print 'alphabet:',len(alphabet)
     with tf.Graph().as_default():
-        # with tf.device("/cpu:0"):
-        session_conf = tf.ConfigProto(
-            allow_soft_placement=FLAGS.allow_soft_placement,
-            log_device_placement=FLAGS.log_device_placement)
+        with tf.device("/gpu:0"):
+            # session_conf = tf.ConfigProto(
+            #     allow_soft_placement=FLAGS.allow_soft_placement,
+            #     log_device_placement=FLAGS.log_device_placement)
+                
+            session_conf = tf.ConfigProto()
+            session_conf.allow_soft_placement = FLAGS.allow_soft_placement
+            session_conf.log_device_placement = FLAGS.log_device_placement
+            session_conf.gpu_options.allow_growth = True
         sess = tf.Session(config=session_conf)
         with sess.as_default(),open(precision,"w") as log:
 
@@ -125,7 +134,8 @@ def test_point_wise():
                 is_Embedding_Needed = True,
                 trainable = FLAGS.trainable,
                 overlap_needed = FLAGS.overlap_needed,
-                pooling = FLAGS.pooling)
+                pooling = FLAGS.pooling,
+                extend_feature_dim = FLAGS.extend_feature_dim)
 
             # Define Training procedure
             global_step = tf.Variable(0, name = "global_step", trainable = False)
