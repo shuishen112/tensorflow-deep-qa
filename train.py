@@ -95,10 +95,11 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
 
 @log_time_delta
 def test_point_wise():
-    train,test,dev = load(FLAGS.data,filter = False)
+    train,test,dev,submit = load(FLAGS.data,filter = False)
     train = train.fillna('')
     test = test.fillna('')
     dev = dev.fillna('')
+    submit = submit.fillna('')
     q_max_sent_length = 40#max(map(lambda x:len(x),train['question'].str.split()))
     a_max_sent_length = 75#max(map(lambda x:len(x),train['answer'].str.split()))
     # train = train[:1000]

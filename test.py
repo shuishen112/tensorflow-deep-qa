@@ -1,12 +1,12 @@
 import tensorflow as tf 
 
-tf.flags.DEFINE_integer("embedding_dim",50, "Dimensionality of character embedding (default: 128)")
-tf.flags.DEFINE_string("filter_sizes", "1,2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
 
-FLAGS = tf.flags.FLAGS
-
-FLAGS._parse_flags()
-print(("\nParameters:"))
-for attr, value in sorted(FLAGS.__flags.items()):
-		 print(("{}={}".format(attr.upper(), value)))
-print((""))
+def test_variable_scope():
+	with tf.variable_scope("foo"):
+	    v = tf.get_variable("v", [1])
+	with tf.variable_scope("foo", reuse=True):
+	    v1 = tf.get_variable("v", [1])
+	assert v1 is v
+if __name__ == '__main__':
+	test_variable_scope()
+	# main()
