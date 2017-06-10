@@ -95,7 +95,7 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
 
 @log_time_delta
 def test_point_wise():
-    train,test,dev,submit = load(FLAGS.data,filter = False)
+    train,test,dev,submit= load(FLAGS.data,filter = False)
     train = train.fillna('')
     test = test.fillna('')
     dev = dev.fillna('')
@@ -110,7 +110,7 @@ def test_point_wise():
     print 'test length', len(test)
     print 'dev length', len(dev)
 
-    alphabet,embeddings = prepare([train,test,dev],dim = FLAGS.embedding_dim,is_embedding_needed = True,fresh = True)
+    alphabet,embeddings = prepare([train,test,dev,submit],dim = FLAGS.embedding_dim,is_embedding_needed = True,fresh = True)
     print 'alphabet:',len(alphabet)
     with tf.Graph().as_default():
         with tf.device("/gpu:0"):
