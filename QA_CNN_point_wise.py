@@ -89,12 +89,12 @@ class QA(object):
                 shape=[num_filters_total, num_filters_total],
                 initializer=tf.contrib.layers.xavier_initializer())
             self.transform_left = tf.matmul(self.q_pooling, W)
-            self.sims = tf.reduce_sum(tf.mul(self.transform_left, self.a_pooling), 1, keep_dims=True)
+            self.sims = tf.reduce_sum(tf.multiply(self.transform_left, self.a_pooling), 1, keep_dims=True)
             self.para.append(W)
             print W
             self.see = W
         # concat the input vector to classification task
-        self.feature = tf.concat(1,[self.q_pooling,self.sims,self.a_pooling],name = 'feature')
+        self.feature = tf.concat([self.q_pooling,self.sims,self.a_pooling],1,name = 'feature')
 
         with tf.name_scope('neural_network'):
             W = tf.get_variable(
@@ -123,7 +123,7 @@ class QA(object):
         for p in self.para:
             l2_loss += tf.nn.l2_loss(p)
         with tf.name_scope("loss"):
-            losses = tf.nn.softmax_cross_entropy_with_logits(self.scores, self.input_y)
+            losses = tf.nn.softmax_cross_entropy_with_logits(logits = self.scores, labels = self.input_y)
             self.loss = tf.reduce_mean(losses) + self.l2_reg_lambda * l2_loss
 
         # Accuracy
@@ -139,7 +139,7 @@ class QA(object):
             return  tf.expand_dims(embedded_chars_q,-1)
 
         overlap_embedding_q = tf.nn.embedding_lookup(self.overlap_W,overlap_indice)
-        return  tf.expand_dims(tf.concat(2,[embedded_chars_q,overlap_embedding_q]),-1)
+        return  tf.expand_dims(tf.concat([embedded_chars_q,overlap_embedding_q],2),-1)
 
     def max_pooling(self,conv,input_length):
         pooled = tf.nn.max_pool(
@@ -183,7 +183,7 @@ class QA(object):
             )
             h = tf.nn.relu(tf.nn.bias_add(conv, self.kernels[i][1]), name="relu-1")
             cnn_outputs.append(h)
-        cnn_reshaped = tf.concat(3,cnn_outputs)
+        cnn_reshaped = tf.concat(cnn_outputs,3)
         return cnn_reshaped
     def narrow_convolution(self,embedding):
         cnn_outputs = []

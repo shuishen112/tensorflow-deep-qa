@@ -105,6 +105,7 @@ def test_point_wise():
     # train = train[:1000]
     # test = test[:1000]
     # dev = dev[:1000]
+    # submit = dev[:100]
     print 'train question unique:{}'.format(len(train['question'].unique()))
     print 'train length',len(train)
     print 'test length', len(test)
@@ -121,7 +122,7 @@ def test_point_wise():
             session_conf = tf.ConfigProto()
             session_conf.allow_soft_placement = FLAGS.allow_soft_placement
             session_conf.log_device_placement = FLAGS.log_device_placement
-            session_conf.gpu_options.allow_growth = True
+            # session_conf.gpu_options.allow_growth = True
         sess = tf.Session(config=session_conf)
         with sess.as_default(),open(precision,"w") as log:
 

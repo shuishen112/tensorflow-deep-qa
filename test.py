@@ -1,5 +1,5 @@
 import tensorflow as tf 
-
+import time
 
 def test_variable_scope():
 	with tf.variable_scope("foo"):
