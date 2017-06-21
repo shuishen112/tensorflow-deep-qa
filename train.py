@@ -37,7 +37,7 @@ def log_time_delta(func):
 
 
 # Model Hyperparameters
-tf.flags.DEFINE_integer("embedding_dim",50, "Dimensionality of character embedding (default: 128)")
+tf.flags.DEFINE_integer("embedding_dim",300, "Dimensionality of character embedding (default: 128)")
 tf.flags.DEFINE_string("filter_sizes", "1,2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
 tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
 tf.flags.DEFINE_float("dropout_keep_prob", 1, "Dropout keep probability (default: 0.5)")
@@ -54,14 +54,14 @@ tf.flags.DEFINE_integer("num_epochs", 500, "Number of training epochs (default: 
 tf.flags.DEFINE_integer("evaluate_every", 500, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 500, "Save model after this many steps (default: 100)")
 tf.flags.DEFINE_boolean('overlap_needed',False,"is overlap used")
-tf.flags.DEFINE_boolean('position_needed',True,'is position used')
+tf.flags.DEFINE_boolean('position_needed',False,'is position used')
 tf.flags.DEFINE_boolean('dns','False','whether use dns or not')
-tf.flags.DEFINE_string('data','wiki','data set')
+tf.flags.DEFINE_string('data','nlpcc','data set')
 tf.flags.DEFINE_string('CNN_type','qacnn','data set')
 tf.flags.DEFINE_float('sample_train',1,'sampe my train data')
 tf.flags.DEFINE_boolean('fresh',True,'wheather recalculate the embedding or overlap default is True')
 tf.flags.DEFINE_string('pooling','max','pooling strategy')
-tf.flags.DEFINE_boolean('clean',True,'whether clean the data')
+tf.flags.DEFINE_boolean('clean',False,'whether clean the data')
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
 tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
@@ -98,7 +98,7 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
 
 @log_time_delta
 def test_point_wise():
-    train,test,dev= load(FLAGS.data,filter = True)
+    train,test,dev= load(FLAGS.data,filter = FLAGS.clean)
     train = train.fillna('')
     test = test.fillna('')
     dev = dev.fillna('')

@@ -18,7 +18,7 @@ the embedding can be download from :
 
 -python2.7
 
--Tensorflow > 0.12
+-Tensorflow = 1.1
 
 -gensim
 
@@ -51,7 +51,7 @@ we can get the result
 | data | map | mrr |
 | :--- | :----: | ----: |
 | trec | 0.747 | 0.74 |
-| wiki(clean) | 0.68 | 0.68  |
+| wiki(clean) | 0.687 | 0.708  |
 
 
 

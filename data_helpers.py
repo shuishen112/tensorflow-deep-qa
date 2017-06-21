@@ -21,7 +21,7 @@ import re
 dataset = 'trec'
 UNKNOWN_WORD_IDX = 0
 from functools import wraps
-isEnglish = True
+isEnglish = False
 
 if isEnglish:
     stopwords = stopwords.words('english')
