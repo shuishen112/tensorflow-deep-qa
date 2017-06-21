@@ -5,13 +5,15 @@ import numpy as np
 import os
 import time
 import datetime
-from data_helpers import get_overlap_dict,load,prepare,batch_gen_with_single,batch_gen_with_point_wise
+# from data_helpers import get_overlap_dict,load,prepare,batch_gen_with_single,batch_gen_with_point_wise
+from helper import get_overlap_dict,batch_gen_with_point_wise,load,prepare,batch_gen_with_single
 import operator
 from QA_CNN_point_wise import QA
 import random
 import evaluation
 import cPickle as pickle
 from sklearn.model_selection import train_test_split
+import config
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 now = int(time.time()) 
@@ -36,37 +38,8 @@ def log_time_delta(func):
 
 
 
-# Model Hyperparameters
-tf.flags.DEFINE_integer("embedding_dim",300, "Dimensionality of character embedding (default: 128)")
-tf.flags.DEFINE_string("filter_sizes", "1,2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
-tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
-tf.flags.DEFINE_float("dropout_keep_prob", 1, "Dropout keep probability (default: 0.5)")
-tf.flags.DEFINE_float("l2_reg_lambda", 0.000001, "L2 regularizaion lambda (default: 0.0)")
-tf.flags.DEFINE_float("learning_rate", 1e-3, "learn rate( default: 0.0)")
-tf.flags.DEFINE_integer("max_len_left", 40, "max document length of left input")
-tf.flags.DEFINE_integer("max_len_right", 40, "max document length of right input")
-tf.flags.DEFINE_string("loss","point_wise","loss function (default:point_wise)")
-tf.flags.DEFINE_integer('extend_feature_dim',10,'overlap_feature_dim')
-# Training parameters
-tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-tf.flags.DEFINE_boolean("trainable", False, "is embedding trainable? (default: False)")
-tf.flags.DEFINE_integer("num_epochs", 500, "Number of training epochs (default: 200)")
-tf.flags.DEFINE_integer("evaluate_every", 500, "Evaluate model on dev set after this many steps (default: 100)")
-tf.flags.DEFINE_integer("checkpoint_every", 500, "Save model after this many steps (default: 100)")
-tf.flags.DEFINE_boolean('overlap_needed',False,"is overlap used")
-tf.flags.DEFINE_boolean('position_needed',False,'is position used')
-tf.flags.DEFINE_boolean('dns','False','whether use dns or not')
-tf.flags.DEFINE_string('data','nlpcc','data set')
-tf.flags.DEFINE_string('CNN_type','qacnn','data set')
-tf.flags.DEFINE_float('sample_train',1,'sampe my train data')
-tf.flags.DEFINE_boolean('fresh',True,'wheather recalculate the embedding or overlap default is True')
-tf.flags.DEFINE_string('pooling','max','pooling strategy')
-tf.flags.DEFINE_boolean('clean',False,'whether clean the data')
-# Misc Parameters
-tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
-tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
 
-FLAGS = tf.flags.FLAGS
+FLAGS = config.flags.FLAGS
 FLAGS._parse_flags()
 print("\nParameters:")
 for attr, value in sorted(FLAGS.__flags.items()):

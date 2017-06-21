@@ -72,7 +72,7 @@ class QA(object):
         for i,filter_size in enumerate(self.filter_sizes):
             with tf.name_scope('conv-pool-%s' % filter_size):
                 filter_shape = [filter_size,self.total_embedding_dim,1,self.num_filters]
-                W = tf.Variable(tf.truncated_normal(filter_shape, stddev = 0.01), name = "W")
+                W = tf.Variable(tf.truncated_normal(filter_shape, stddev = 0.1), name = "W")
                 b = tf.Variable(tf.constant(0.0, shape=[self.num_filters]), name = "b")
                 self.kernels.append((W,b))
                 self.para.append(W)
@@ -89,13 +89,12 @@ class QA(object):
                 self.q_pooling = tf.reshape(self.max_pooling(self.q_conv,self.max_input_left),[-1, self.num_filters_total])
                 self.a_pooling = tf.reshape(self.max_pooling(self.a_conv,self.max_input_right),[-1,self.num_filters_total])
             elif self.pooling == 'attentive':
-                print self.pooling
                 with tf.name_scope('attention'):    
                     self.U = tf.Variable(tf.truncated_normal(shape = [self.num_filters_total,self.num_filters_total],stddev = 0.01,name = 'U'))
                     self.para.append(self.U)
 
                 self.q_pooling,self.a_pooling = self.attentive_pooling(self.q_conv,self.a_conv)
-                print self.q_pooling
+        
 
                 self.q_pooling = tf.reshape(self.q_pooling,[-1,self.num_filters_total])
                 self.a_pooling = tf.reshape(self.a_pooling,[-1,self.num_filters_total])
@@ -108,7 +107,10 @@ class QA(object):
                 "W",
                 shape=[self.num_filters_total, self.num_filters_total],
                 initializer=tf.contrib.layers.xavier_initializer())
+            # print 'q_pooling',self.q_pooling
+            # print 'num_filters',self.num_filters_total
             self.transform_left = tf.matmul(self.q_pooling, W)
+            print 'transform_left',self.transform_left
             self.sims = tf.reduce_sum(tf.multiply(self.transform_left, self.a_pooling), 1, keep_dims=True)
             self.para.append(W)
             print W
@@ -121,7 +123,7 @@ class QA(object):
                 "W_hidden",
                 shape=[2 * self.num_filters_total + 1, self.hidden_num],
                 initializer = tf.contrib.layers.xavier_initializer())
-            b = tf.Variable(tf.constant(0.0, shape = [self.hidden_num]), name = "b")
+            b = tf.get_variable('b_hidden', shape=[self.hidden_num],initializer = tf.random_normal_initializer())
             self.para.append(W)
             self.para.append(b)
             self.hidden_output = tf.nn.relu(tf.nn.xw_plus_b(self.feature, W, b, name = "hidden_output"))
@@ -134,17 +136,18 @@ class QA(object):
                 "W_output",
                 shape = [self.hidden_num, 2],
                 initializer = tf.contrib.layers.xavier_initializer())
-            b = tf.Variable(tf.constant(0.0, shape=[2]), name="b")
+            b = tf.get_variable('b_output', shape=[2],initializer = tf.random_normal_initializer())
             self.para.append(W)
             self.para.append(b)
-            self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name = "scores")
+            self.logits = tf.nn.xw_plus_b(self.h_drop, W, b, name = "scores")
+            self.scores = tf.nn.softmax(self.logits)
             self.predictions = tf.argmax(self.scores, 1, name = "predictions")
     def create_loss(self):
         l2_loss = tf.constant(0.0)
         for p in self.para:
             l2_loss += tf.nn.l2_loss(p)
         with tf.name_scope("loss"):
-            losses = tf.nn.softmax_cross_entropy_with_logits(logits = self.scores, labels = self.input_y)
+            losses = tf.nn.softmax_cross_entropy_with_logits(logits = self.logits, labels = self.input_y)
             self.loss = tf.reduce_mean(losses) + self.l2_reg_lambda * l2_loss
 
         # Accuracy
