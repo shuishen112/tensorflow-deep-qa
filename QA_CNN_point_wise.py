@@ -8,20 +8,27 @@ class QA(object):
     def __init__(
       self, max_input_left, max_input_right, vocab_size,embedding_size,batch_size,
       embeddings,dropout_keep_prob,filter_sizes, 
-      num_filters,l2_reg_lambda = 0.0, is_Embedding_Needed = False,trainable = True,overlap_needed = True,pooling = 'max',hidden_num = 10,\
+      num_filters,l2_reg_lambda = 0.0, is_Embedding_Needed = False,trainable = True,overlap_needed = True,position_needed = True,pooling = 'max',hidden_num = 10,\
       extend_feature_dim = 10):
 
-        self.question = tf.placeholder(tf.int32,[None,max_input_left],name = 'input_question')
-        self.answer = tf.placeholder(tf.int32,[None,max_input_right],name = 'input_answer')
-        self.input_y = tf.placeholder(tf.float32, [None,2], name = "input_y")
+        
         self.dropout_keep_prob = dropout_keep_prob
         self.num_filters = num_filters
         self.embeddings = embeddings
+        self.embedding_size = embedding_size
         self.overlap_needed = overlap_needed
+        self.vocab_size = vocab_size
+        self.trainable = trainable
+        self.filter_sizes = filter_sizes
+        self.pooling = pooling
+        self.position_needed = position_needed
         if self.overlap_needed:
             self.total_embedding_dim = embedding_size + extend_feature_dim
         else:
             self.total_embedding_dim = embedding_size
+        if self.position_needed:
+            self.total_embedding_dim = self.total_embedding_dim + extend_feature_dim
+        print self.total_embedding_dim
         self.batch_size = batch_size
         self.l2_reg_lambda = l2_reg_lambda
         self.filter_sizes = filter_sizes
@@ -30,63 +37,76 @@ class QA(object):
         self.max_input_right = max_input_right
         self.hidden_num = hidden_num
         self.extend_feature_dim = extend_feature_dim
+        self.is_Embedding_Needed = is_Embedding_Needed   
+        
+    def create_placeholder(self):
+        self.question = tf.placeholder(tf.int32,[None,self.max_input_left],name = 'input_question')
+        self.answer = tf.placeholder(tf.int32,[None,self.max_input_right],name = 'input_answer')
+        self.input_y = tf.placeholder(tf.float32, [None,2], name = "input_y")
+        self.q_overlap = tf.placeholder(tf.int32,[None,self.max_input_left],name = 'q_feature_embeding')
+        self.a_overlap = tf.placeholder(tf.int32,[None,self.max_input_right],name = 'a_feature_embeding')
+        self.q_position = tf.placeholder(tf.int32,[None,self.max_input_left],name = 'q_position')
+        self.a_position = tf.placeholder(tf.int32,[None,self.max_input_right],name = 'a_position')
+    def add_embeddings(self):
 
-        self.q_overlap = tf.placeholder(tf.int32,[None,max_input_left],name = 'q_feature_embeding')
-        self.a_overlap = tf.placeholder(tf.int32,[None,max_input_right],name = 'a_feature_embeding')
         # Embedding layer for both CNN
         with tf.name_scope("embedding"):
-            if is_Embedding_Needed:
+            if self.is_Embedding_Needed:
                 print "load embedding"
-                W = tf.Variable(np.array(self.embeddings),name="W" ,dtype="float32",trainable = trainable )
+                W = tf.Variable(np.array(self.embeddings),name="W" ,dtype="float32",trainable = self.trainable )
             else:
-                W = tf.Variable(tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),name="W",trainable = trainable)
+                W = tf.Variable(tf.random_uniform([self.vocab_size, self.embedding_size], -1.0, 1.0),name="W",trainable = self.trainable)
             self.embedding_W = W
             self.overlap_W = tf.Variable(tf.random_uniform([3, self.extend_feature_dim], -1.0, 1.0),name="W",trainable = True)
+            self.position_W = tf.Variable(tf.random_uniform([300,self.extend_feature_dim], -1.0, 1.0),name = 'W',trainable = True)
             self.para.append(self.embedding_W)
             self.para.append(self.overlap_W)
 
         #get embedding from the word indices
-        self.embedded_chars_q = self.getEmbedding(self.question,self.q_overlap)
+        self.embedded_chars_q = self.concat_embedding(self.question,self.q_overlap,self.q_position)
         print self.embedded_chars_q
-        self.embedded_chars_a = self.getEmbedding(self.answer,self.a_overlap)
-
+        self.embedded_chars_a = self.concat_embedding(self.answer,self.a_overlap,self.a_position)
+    def convolution(self):
         #initialize my conv kernel
         self.kernels = []
-        for i,filter_size in enumerate(filter_sizes):
+        for i,filter_size in enumerate(self.filter_sizes):
             with tf.name_scope('conv-pool-%s' % filter_size):
-                filter_shape = [filter_size,self.total_embedding_dim,1,num_filters]
+                filter_shape = [filter_size,self.total_embedding_dim,1,self.num_filters]
                 W = tf.Variable(tf.truncated_normal(filter_shape, stddev = 0.01), name = "W")
-                b = tf.Variable(tf.constant(0.0, shape=[num_filters]), name = "b")
+                b = tf.Variable(tf.constant(0.0, shape=[self.num_filters]), name = "b")
                 self.kernels.append((W,b))
                 self.para.append(W)
                 self.para.append(b)
 
-        num_filters_total = num_filters * len(filter_sizes)
-        q_conv = self.wide_convolution(self.embedded_chars_q)
-        a_conv = self.wide_convolution(self.embedded_chars_a)
+        self.num_filters_total = self.num_filters * len(self.filter_sizes)
+        self.q_conv = self.wide_convolution(self.embedded_chars_q)
+        self.a_conv = self.wide_convolution(self.embedded_chars_a)
+    def pooling_graph(self):
         with tf.name_scope('pooling'):
             #different pooling strategy. max pooing or attentive pooling
-            if pooling == 'max':
-                print pooling
-                self.q_pooling = tf.reshape(self.max_pooling(q_conv,max_input_left),[-1,num_filters_total])
-                self.a_pooling = tf.reshape(self.max_pooling(a_conv,max_input_right),[-1,num_filters_total])
-            elif pooling == 'attentive':
-                print pooling
+            if self.pooling == 'max':
+                print self.pooling
+                self.q_pooling = tf.reshape(self.max_pooling(self.q_conv,self.max_input_left),[-1, self.num_filters_total])
+                self.a_pooling = tf.reshape(self.max_pooling(self.a_conv,self.max_input_right),[-1,self.num_filters_total])
+            elif self.pooling == 'attentive':
+                print self.pooling
                 with tf.name_scope('attention'):    
-                    self.U = tf.Variable(tf.truncated_normal(shape = [num_filters_total,num_filters_total],stddev = 0.01,name = 'U'))
+                    self.U = tf.Variable(tf.truncated_normal(shape = [self.num_filters_total,self.num_filters_total],stddev = 0.01,name = 'U'))
                     self.para.append(self.U)
 
-                self.q_pooling,self.a_pooling = self.attentive_pooling(q_conv,a_conv)
-                self.q_pooling = tf.reshape(self.q_pooling,[-1,num_filters_total])
-                self.a_pooling = tf.reshape(self.a_pooling,[-1,num_filters_total])
+                self.q_pooling,self.a_pooling = self.attentive_pooling(self.q_conv,self.a_conv)
+                print self.q_pooling
+
+                self.q_pooling = tf.reshape(self.q_pooling,[-1,self.num_filters_total])
+                self.a_pooling = tf.reshape(self.a_pooling,[-1,self.num_filters_total])
             else:
                 print 'no pooling'
-            
+    def interact(self):
         # Compute similarity
         with tf.name_scope("similarity"):
             W = tf.get_variable(
                 "W",
-                shape=[num_filters_total, num_filters_total],
+                shape=[self.num_filters_total, self.num_filters_total],
                 initializer=tf.contrib.layers.xavier_initializer())
             self.transform_left = tf.matmul(self.q_pooling, W)
             self.sims = tf.reduce_sum(tf.multiply(self.transform_left, self.a_pooling), 1, keep_dims=True)
@@ -95,11 +115,11 @@ class QA(object):
             self.see = W
         # concat the input vector to classification task
         self.feature = tf.concat([self.q_pooling,self.sims,self.a_pooling],1,name = 'feature')
-
+    def feed_neural_work(self):
         with tf.name_scope('neural_network'):
             W = tf.get_variable(
                 "W_hidden",
-                shape=[2 * num_filters_total + 1, self.hidden_num],
+                shape=[2 * self.num_filters_total + 1, self.hidden_num],
                 initializer = tf.contrib.layers.xavier_initializer())
             b = tf.Variable(tf.constant(0.0, shape = [self.hidden_num]), name = "b")
             self.para.append(W)
@@ -119,6 +139,7 @@ class QA(object):
             self.para.append(b)
             self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name = "scores")
             self.predictions = tf.argmax(self.scores, 1, name = "predictions")
+    def create_loss(self):
         l2_loss = tf.constant(0.0)
         for p in self.para:
             l2_loss += tf.nn.l2_loss(p)
@@ -132,14 +153,21 @@ class QA(object):
             self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
 
 
-    def getEmbedding(self,words_indice,overlap_indice):
+    def concat_embedding(self,words_indice,overlap_indice,position_indice):
         embedded_chars_q = tf.nn.embedding_lookup(self.embedding_W,words_indice)
-        if not self.overlap_needed:
-            print 'hello world'
-            return  tf.expand_dims(embedded_chars_q,-1)
-
+        position_embedding = tf.nn.embedding_lookup(self.position_W,position_indice)
         overlap_embedding_q = tf.nn.embedding_lookup(self.overlap_W,overlap_indice)
-        return  tf.expand_dims(tf.concat([embedded_chars_q,overlap_embedding_q],2),-1)
+        if not self.overlap_needed :
+            if not self.position_needed:
+                return tf.expand_dims(embedded_chars_q,-1)
+            else:
+                return tf.expand_dims(tf.concat([embedded_chars_q,position_embedding],2),-1)
+        else:
+            if not self.position_needed:
+                return  tf.expand_dims(tf.concat([embedded_chars_q,overlap_embedding_q],2),-1)
+            else:
+                return tf.expand_dims(tf.concat([embedded_chars_q,overlap_embedding_q,position_embedding],2),-1)
+        
 
     def max_pooling(self,conv,input_length):
         pooled = tf.nn.max_pool(
@@ -157,7 +185,7 @@ class QA(object):
         # A,transpose_b = True),name = 'G')
         first = tf.matmul(tf.reshape(Q,[-1,len(self.filter_sizes) * self.num_filters]),self.U)
         second_step = tf.reshape(first,[self.batch_size,-1,len(self.filter_sizes) * self.num_filters])
-        result = tf.batch_matmul(second_step,tf.transpose(A,perm = [0,2,1]))
+        result = tf.matmul(second_step,tf.transpose(A,perm = [0,2,1]))
         G = tf.tanh(result)
         # column-wise pooling ,row-wise pooling
         row_pooling = tf.reduce_max(G,1,True,name = 'row_pooling')
@@ -200,6 +228,14 @@ class QA(object):
         # cnn_reshaped = tf.concat(3,cnn_outputs)
         return cnn_outputs
         # return cnn_reshaped
+    def build_graph(self):
+        self.create_placeholder()
+        self.add_embeddings()
+        self.convolution()
+        self.pooling_graph()
+        self.interact()
+        self.feed_neural_work()
+        self.create_loss()
 
 if __name__ == '__main__':
     cnn = QA(max_input_left = 33,
@@ -214,14 +250,18 @@ if __name__ == '__main__':
                 l2_reg_lambda = 0.0,
                 is_Embedding_Needed = False,
                 trainable = True,
-                overlap_needed = True)
-  
+                overlap_needed = False,
+                pooling = 'max',
+                position_needed = True)
+    cnn.build_graph()
     input_x_1 = np.reshape(np.arange(3 * 33),[3,33])
     input_x_2 = np.reshape(np.arange(3 * 40),[3,40])
     input_y = np.ones((3,2))
 
     input_overlap_q = np.ones((3,33))
     input_overlap_a = np.ones((3,40))
+    q_posi = np.ones((3,33))
+    a_posi = np.ones((3,40))
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         feed_dict = {
@@ -229,7 +269,9 @@ if __name__ == '__main__':
             cnn.answer:input_x_2,
             cnn.input_y:input_y,
             cnn.q_overlap:input_overlap_q,
-            cnn.a_overlap:input_overlap_a
+            cnn.a_overlap:input_overlap_a,
+            cnn.q_position:q_posi,
+            cnn.a_position:a_posi
         }
        
         question,answer,scores = sess.run([cnn.question,cnn.answer,cnn.scores],feed_dict)

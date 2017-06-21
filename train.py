@@ -37,7 +37,7 @@ def log_time_delta(func):
 
 
 # Model Hyperparameters
-tf.flags.DEFINE_integer("embedding_dim",300, "Dimensionality of character embedding (default: 128)")
+tf.flags.DEFINE_integer("embedding_dim",50, "Dimensionality of character embedding (default: 128)")
 tf.flags.DEFINE_string("filter_sizes", "1,2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
 tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
 tf.flags.DEFINE_float("dropout_keep_prob", 1, "Dropout keep probability (default: 0.5)")
@@ -53,9 +53,10 @@ tf.flags.DEFINE_boolean("trainable", False, "is embedding trainable? (default: F
 tf.flags.DEFINE_integer("num_epochs", 500, "Number of training epochs (default: 200)")
 tf.flags.DEFINE_integer("evaluate_every", 500, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 500, "Save model after this many steps (default: 100)")
-tf.flags.DEFINE_boolean('overlap_needed',True,"is overlap used")
+tf.flags.DEFINE_boolean('overlap_needed',False,"is overlap used")
+tf.flags.DEFINE_boolean('position_needed',True,'is position used')
 tf.flags.DEFINE_boolean('dns','False','whether use dns or not')
-tf.flags.DEFINE_string('data','nlpcc','data set')
+tf.flags.DEFINE_string('data','wiki','data set')
 tf.flags.DEFINE_string('CNN_type','qacnn','data set')
 tf.flags.DEFINE_float('sample_train',1,'sampe my train data')
 tf.flags.DEFINE_boolean('fresh',True,'wheather recalculate the embedding or overlap default is True')
@@ -87,7 +88,9 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
             cnn.question: data[0],
             cnn.answer: data[1],
             cnn.q_overlap:data[2],
-            cnn.a_overlap:data[3]
+            cnn.a_overlap:data[3],
+            cnn.q_position:data[4],
+            cnn.a_position:data[5]
         }
         score = sess.run(cnn.scores,feed_dict)
         scores.extend(score)
@@ -95,13 +98,13 @@ def predict(sess,cnn,test,alphabet,batch_size,q_len,a_len):
 
 @log_time_delta
 def test_point_wise():
-    train,test,dev,submit= load(FLAGS.data,filter = False)
+    train,test,dev= load(FLAGS.data,filter = True)
     train = train.fillna('')
     test = test.fillna('')
     dev = dev.fillna('')
-    submit = submit.fillna('')
-    q_max_sent_length = 40#max(map(lambda x:len(x),train['question'].str.split()))
-    a_max_sent_length = 75#max(map(lambda x:len(x),train['answer'].str.split()))
+    # submit = submit.fillna('')
+    q_max_sent_length = max(map(lambda x:len(x),train['question'].str.split()))
+    a_max_sent_length = max(map(lambda x:len(x),train['answer'].str.split()))
     # train = train[:1000]
     # test = test[:1000]
     # dev = dev[:1000]
@@ -111,7 +114,7 @@ def test_point_wise():
     print 'test length', len(test)
     print 'dev length', len(dev)
 
-    alphabet,embeddings = prepare([train,test,dev,submit],dim = FLAGS.embedding_dim,is_embedding_needed = True,fresh = True)
+    alphabet,embeddings = prepare([train,test,dev],dim = FLAGS.embedding_dim,is_embedding_needed = True,fresh = True)
     print 'alphabet:',len(alphabet)
     with tf.Graph().as_default():
         with tf.device("/gpu:0"):
@@ -122,7 +125,7 @@ def test_point_wise():
             session_conf = tf.ConfigProto()
             session_conf.allow_soft_placement = FLAGS.allow_soft_placement
             session_conf.log_device_placement = FLAGS.log_device_placement
-            # session_conf.gpu_options.allow_growth = True
+            session_conf.gpu_options.allow_growth = True
         sess = tf.Session(config=session_conf)
         with sess.as_default(),open(precision,"w") as log:
 
@@ -142,9 +145,10 @@ def test_point_wise():
                 is_Embedding_Needed = True,
                 trainable = FLAGS.trainable,
                 overlap_needed = FLAGS.overlap_needed,
+                position_needed = FLAGS.position_needed,
                 pooling = FLAGS.pooling,
                 extend_feature_dim = FLAGS.extend_feature_dim)
-
+            cnn.build_graph()
             # Define Training procedure
             global_step = tf.Variable(0, name = "global_step", trainable = False)
             optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
@@ -167,7 +171,9 @@ def test_point_wise():
                         cnn.answer:data[1],
                         cnn.input_y:data[2],
                         cnn.q_overlap:data[3],
-                        cnn.a_overlap:data[4]
+                        cnn.a_overlap:data[4],
+                        cnn.q_position:data[5],
+                        cnn.a_position:data[6]
                     }
                     _, step,loss, accuracy,pred ,scores,see = sess.run(
                     [train_op, global_step,cnn.loss, cnn.accuracy,cnn.predictions,cnn.scores,cnn.see],
