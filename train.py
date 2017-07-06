@@ -134,7 +134,7 @@ def test_point_wise():
             # seq_process(train, alphabet)
             # seq_process(test, alphabet)
             map_max = 0.65
-            for i in range(100):
+            for i in range(10):
                 d = get_overlap_dict(train,alphabet,q_len = q_max_sent_length,a_len = a_max_sent_length)
                 datas = batch_gen_with_point_wise(train,alphabet,FLAGS.batch_size,overlap_dict = d,
                     q_len = q_max_sent_length,a_len = a_max_sent_length)
@@ -159,13 +159,14 @@ def test_point_wise():
                 # predicted = predict(sess,cnn,train,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
                 # map_mrr_train = evaluation.evaluationBypandas(train,predicted[:,-1])
                 predicted = predict(sess,cnn,dev,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
-                map_mrr_test = evaluation.evaluationBypandas(dev,predicted[:,-1])
-
-                if map_mrr_test[0] > map_max:
-                        map_max = map_mrr_test[0]
+                map_mrr_dev = evaluation.evaluationBypandas(dev,predicted[:,-1])
+                predicted_test = predict(sess,cnn,test,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
+                map_mrr_test = evaluation.evaluationBypandas(test,predicted_test[:,-1])
+                if map_mrr_dev[0] > map_max:
+                        map_max = map_mrr_dev[0]
                         timeStamp = time.strftime("%Y%m%d%H%M%S", time.localtime(int(time.time())))
                         folder = 'runs/' + timeDay
-                        out_dir = folder +'/'+timeStamp+'__'+FLAGS.data+str(map_mrr_test[0])
+                        out_dir = folder +'/'+timeStamp+'__'+FLAGS.data+str(map_mrr_dev[0])
                         if not os.path.exists(folder):
                             os.makedirs(folder)
                         save_path = saver.save(sess, out_dir)
@@ -175,10 +176,10 @@ def test_point_wise():
                 # map_mrr_train = evaluation.evaluationBypandas(train,predicted_train[:,-1])
                 # print evaluation.evaluationBypandas(train,predicted_train[:,-1])
                 # print "{}:train epoch:map mrr {}".format(i,map_mrr_train)
+                print "{}:dev epoch:map mrr {}".format(i,map_mrr_dev)
                 print "{}:test epoch:map mrr {}".format(i,map_mrr_test)
-                # print "{}:dev epoch:map mrr {}".format(i,map_mrr_dev)
                 # line = " {}:epoch: map_train{}----map_test{}----map_dev{}".format(i,map_mrr_train[0],map_mrr_test[0],map_mrr_dev[0])
-                line = " {}:epoch: map_test{}".format(i,map_mrr_test[0])
+                line = " {}:epoch: map_dev{}".format(i,map_mrr_dev[0])
                 log.write(line + '\n')
                 log.flush()
             log.close()
