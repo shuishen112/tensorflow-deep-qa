@@ -101,7 +101,7 @@ def test_point_wise():
             session_conf.gpu_options.allow_growth = True
         sess = tf.Session(config=session_conf)
         with sess.as_default(),open(precision,"w") as log:
-
+            log.write(str(FLAGS.__flags) + '\n')
             # train,test,dev = load("trec",filter=True)
             # alphabet,embeddings = prepare([train,test,dev],is_embedding_needed = True)
             cnn = QA(
@@ -158,8 +158,8 @@ def test_point_wise():
                 
                 # predicted = predict(sess,cnn,train,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
                 # map_mrr_train = evaluation.evaluationBypandas(train,predicted[:,-1])
-                predicted = predict(sess,cnn,test,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
-                map_mrr_test = evaluation.evaluationBypandas(test,predicted[:,-1])
+                predicted = predict(sess,cnn,dev,alphabet,FLAGS.batch_size,q_max_sent_length,a_max_sent_length)
+                map_mrr_test = evaluation.evaluationBypandas(dev,predicted[:,-1])
 
                 if map_mrr_test[0] > map_max:
                         map_max = map_mrr_test[0]

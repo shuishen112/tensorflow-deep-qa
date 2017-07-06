@@ -118,6 +118,29 @@ class QA(object):
         # concat the input vector to classification task
         self.feature = tf.concat([self.q_pooling,self.sims,self.a_pooling],1,name = 'feature')
     def feed_neural_work(self):
+        '''
+        mlp_units = [2 * self.num_filters_total + 1]
+        mlp_inputs = self.feature
+        for i,mlp_unit in enumerate(mlp_units):
+            with tf.variable_scope('mlp_%d' % i):
+                mlp_outputs = tf.contrib.layers.legacy_fully_connected(
+                mlp_inputs, mlp_unit,
+                activation_fn = tf.nn.relu,
+                weight_regularizer = tf.contrib.layers.l2_regularizer(
+                  self.l2_reg_lambda))
+                mlp_inputs = mlp_outputs
+        with tf.name_scope('dropout'):
+            dropout_out = tf.layers.dropout(mlp_outputs,training = True)
+        with tf.variable_scope('output_layer'):
+            W = tf.get_variable('W', shape=[mlp_units[-1], 2],
+            initializer=tf.contrib.layers.xavier_initializer())
+            b = tf.get_variable('b', shape=[2],
+            initializer=tf.random_normal_initializer())
+            self.logits = tf.nn.xw_plus_b(dropout_out, W, b, name="logits")
+            self.scores = tf.nn.softmax(self.logits)
+            self.predictions = tf.argmax(self.scores, 1, name = "predictions")
+            '''
+        
         with tf.name_scope('neural_network'):
             W = tf.get_variable(
                 "W_hidden",
@@ -142,6 +165,7 @@ class QA(object):
             self.logits = tf.nn.xw_plus_b(self.h_drop, W, b, name = "scores")
             self.scores = tf.nn.softmax(self.logits)
             self.predictions = tf.argmax(self.scores, 1, name = "predictions")
+            
     def create_loss(self):
         l2_loss = tf.constant(0.0)
         for p in self.para:
