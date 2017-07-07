@@ -77,7 +77,7 @@ def test_point_wise():
     dev = dev.fillna('')
     # submit = submit.fillna('')
     q_max_sent_length = max(map(lambda x:len(x),train['question'].str.split()))
-    a_max_sent_length = max(map(lambda x:len(x),train['answer'].str.split()))
+    a_max_sent_length = 75#max(map(lambda x:len(x),train['answer'].str.split()))
     # train = train[:1000]
     # test = test[:1000]
     # dev = dev[:1000]
@@ -179,7 +179,7 @@ def test_point_wise():
                 print "{}:dev epoch:map mrr {}".format(i,map_mrr_dev)
                 print "{}:test epoch:map mrr {}".format(i,map_mrr_test)
                 # line = " {}:epoch: map_train{}----map_test{}----map_dev{}".format(i,map_mrr_train[0],map_mrr_test[0],map_mrr_dev[0])
-                line = " {}:epoch: map_dev{}".format(i,map_mrr_dev[0])
+                line = " {}:epoch: map_dev{}----map_test{}".format(i,map_mrr_dev[0],map_mrr_test[0])
                 log.write(line + '\n')
                 log.flush()
             log.close()
