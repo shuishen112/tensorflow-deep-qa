@@ -4,7 +4,7 @@
 import tensorflow as tf
 import numpy as np
 # point_wise obbject
-class QA(object):
+class QA_quantum(object):
     def __init__(
       self, max_input_left, max_input_right, vocab_size,embedding_size,batch_size,
       embeddings,dropout_keep_prob,filter_sizes, 
@@ -28,7 +28,6 @@ class QA(object):
             self.total_embedding_dim = embedding_size
         if self.position_needed:
             self.total_embedding_dim = self.total_embedding_dim + extend_feature_dim
-        print self.total_embedding_dim
         self.batch_size = batch_size
         self.l2_reg_lambda = l2_reg_lambda
         self.filter_sizes = filter_sizes
@@ -41,7 +40,6 @@ class QA(object):
         
     def create_placeholder(self):
         self.question = tf.placeholder(tf.int32,[None,self.max_input_left],name = 'input_question')
-        print self.question
         self.answer = tf.placeholder(tf.int32,[None,self.max_input_right],name = 'input_answer')
         self.input_y = tf.placeholder(tf.float32, [None,2], name = "input_y")
         self.q_overlap = tf.placeholder(tf.int32,[None,self.max_input_left],name = 'q_feature_embeding')
@@ -65,18 +63,26 @@ class QA(object):
 
         #get embedding from the word indices
         self.embedded_chars_q = self.concat_embedding(self.question,self.q_overlap,self.q_position)
-        print self.embedded_chars_q
+        
         self.embedded_chars_a = self.concat_embedding(self.answer,self.a_overlap,self.a_position)
+    def joint_representation(self):
+        self.density_q = self.density_matrix(self.embedded_chars_q)
+        self.density_a = self.density_matrix(self.embedded_chars_a)
+        self.M_qa = tf.matmul(self.density_q,self.density_a)
+        print self.M_qa
+        exit()
+    #construct the density_matrix
+    def density_matrix(self,sentence_matrix):
+        reverse_matrix = tf.transpose(sentence_matrix, perm = [0,1,3,2])
+        return tf.reduce_sum(tf.matmul(sentence_matrix,reverse_matrix), 1)
     def convolution(self):
         #initialize my conv kernel
         self.kernels = []
         for i,filter_size in enumerate(self.filter_sizes):
             with tf.name_scope('conv-pool-%s' % filter_size):
                 filter_shape = [filter_size,self.total_embedding_dim,1,self.num_filters]
-                W = tf.get_variable('W' + str(i),filter_shape,tf.float32,tf.contrib.layers.variance_scaling_initializer(factor=1.0,mode='FAN_IN',uniform=True))
-                b = tf.get_variable('b' + str(i),[self.num_filters],tf.float32,tf.constant_initializer(0.01) )
-                # W = tf.Variable(tf.truncated_normal(filter_shape, stddev = 0.1), name = "W")
-                # b = tf.Variable(tf.constant(0.0, shape=[self.num_filters]), name = "b")
+                W = tf.Variable(tf.truncated_normal(filter_shape, stddev = 0.1), name = "W")
+                b = tf.Variable(tf.constant(0.0, shape=[self.num_filters]), name = "b")
                 self.kernels.append((W,b))
                 self.para.append(W)
                 self.para.append(b)
@@ -103,11 +109,6 @@ class QA(object):
                 self.a_pooling = tf.reshape(self.a_pooling,[-1,self.num_filters_total])
             else:
                 print 'no pooling'
-    def out_product_interact(self):
-
-        print self.q_pooling
-        print self.a_pooling
-
     def interact(self):
         # Compute similarity
         with tf.name_scope("similarity"):
@@ -124,9 +125,7 @@ class QA(object):
             print W
             self.see = W
         # concat the input vector to classification task
-        self.feature = tf.concat([self.q_pooling,self.a_pooling],1,name = 'feature')
-
-        # self.feature = tf.concat([self.q_pooling,self.sims,self.a_pooling],1,name = 'feature')
+        self.feature = tf.concat([self.q_pooling,self.sims,self.a_pooling],1,name = 'feature')
     def feed_neural_work(self):
         '''
         mlp_units = [2 * self.num_filters_total + 1]
@@ -154,7 +153,7 @@ class QA(object):
         with tf.name_scope('neural_network'):
             W = tf.get_variable(
                 "W_hidden",
-                shape=[2 * self.num_filters_total, self.hidden_num],
+                shape=[2 * self.num_filters_total + 1, self.hidden_num],
                 initializer = tf.contrib.layers.xavier_initializer())
             b = tf.get_variable('b_hidden', shape=[self.hidden_num],initializer = tf.random_normal_initializer())
             self.para.append(W)
@@ -268,15 +267,15 @@ class QA(object):
     def build_graph(self):
         self.create_placeholder()
         self.add_embeddings()
-        self.convolution()
-        self.pooling_graph()
-        self.out_product_interact()
-        self.interact()
-        self.feed_neural_work()
-        self.create_loss()
+        self.joint_representation()
+        # self.convolution()
+        # self.pooling_graph()
+        # self.interact()
+        # self.feed_neural_work()
+        # self.create_loss()
 
 if __name__ == '__main__':
-    cnn = QA(max_input_left = 33,
+    cnn = QA_quantum(max_input_left = 33,
                 max_input_right = 40,
                 vocab_size = 5000,
                 embedding_size = 100,
@@ -290,7 +289,7 @@ if __name__ == '__main__':
                 trainable = True,
                 overlap_needed = False,
                 pooling = 'max',
-                position_needed = True)
+                position_needed = False)
     cnn.build_graph()
     input_x_1 = np.reshape(np.arange(3 * 33),[3,33])
     input_x_2 = np.reshape(np.arange(3 * 40),[3,40])

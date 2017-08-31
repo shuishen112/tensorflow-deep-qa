@@ -9,7 +9,7 @@ import datetime
 from helper import get_overlap_dict,batch_gen_with_point_wise,load,prepare,batch_gen_with_single
 import operator
 from QA_CNN_point_wise import QA
-import random
+import random 
 import evaluation
 import cPickle as pickle
 from sklearn.model_selection import train_test_split
@@ -77,7 +77,7 @@ def test_point_wise():
     dev = dev.fillna('')
     # submit = submit.fillna('')
     q_max_sent_length = max(map(lambda x:len(x),train['question'].str.split()))
-    a_max_sent_length = 75#max(map(lambda x:len(x),train['answer'].str.split()))
+    a_max_sent_length = max(map(lambda x:len(x),train['answer'].str.split()))
     # train = train[:1000]
     # test = test[:1000]
     # dev = dev[:1000]
@@ -124,7 +124,9 @@ def test_point_wise():
             cnn.build_graph()
             # Define Training procedure
             global_step = tf.Variable(0, name = "global_step", trainable = False)
-            optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
+            starter_learning_rate = 0.001
+            learning_rate = tf.train.exponential_decay(starter_learning_rate,global_step,100,0.96)
+            optimizer = tf.train.AdamOptimizer(learning_rate)
             grads_and_vars = optimizer.compute_gradients(cnn.loss)
             train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
             saver = tf.train.Saver(tf.global_variables(), max_to_keep=20)
@@ -134,7 +136,7 @@ def test_point_wise():
             # seq_process(train, alphabet)
             # seq_process(test, alphabet)
             map_max = 0.65
-            for i in range(10):
+            for i in range(30):
                 d = get_overlap_dict(train,alphabet,q_len = q_max_sent_length,a_len = a_max_sent_length)
                 datas = batch_gen_with_point_wise(train,alphabet,FLAGS.batch_size,overlap_dict = d,
                     q_len = q_max_sent_length,a_len = a_max_sent_length)
