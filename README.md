@@ -12,7 +12,7 @@ map mrr = (0.68,0.73)
 去停用词 map,mrr(0.62,0.67)
 map,mrr = (0.71,0.77) 一般可以提升2个点左右，所以这个提升是非常大的。 -->
 
-##Models
+## Models
 
 - [Deep Learning for Answer Sentence Selection](https://arxiv.org/abs/1412.1632)
 
