@@ -1,33 +1,35 @@
-from tensorflow import flags
-# Model Hyperparameters
-flags.DEFINE_integer("embedding_dim",50, "Dimensionality of character embedding (default: 128)")
-flags.DEFINE_string("filter_sizes", "1,2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
-flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
-flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
-flags.DEFINE_float("l2_reg_lambda", 0.000001, "L2 regularizaion lambda (default: 0.0)")
-flags.DEFINE_float("learning_rate", 0.001, "learn rate( default: 0.0)")
-flags.DEFINE_integer("max_len_left", 40, "max document length of left input")
-flags.DEFINE_integer("max_len_right", 40, "max document length of right input")
-flags.DEFINE_string("loss","point_wise","loss function (default:point_wise)")
-flags.DEFINE_integer('extend_feature_dim',10,'overlap_feature_dim')
-# Training parameters
-flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-flags.DEFINE_boolean("trainable", False, "is embedding trainable? (default: False)")
-flags.DEFINE_integer("num_epochs", 500, "Number of training epochs (default: 200)")
-flags.DEFINE_integer("evaluate_every", 500, "Evaluate model on dev set after this many steps (default: 100)")
-flags.DEFINE_integer("checkpoint_every", 500, "Save model after this many steps (default: 100)")
-flags.DEFINE_boolean('overlap_needed',False,"is overlap used")
-flags.DEFINE_boolean('position_needed',False,'is position used')
-flags.DEFINE_boolean('dns','False','whether use dns or not')
-flags.DEFINE_string('data','wiki','data set')
-flags.DEFINE_string('CNN_type','qacnn','data set')
-flags.DEFINE_float('sample_train',1,'sampe my train data')
-flags.DEFINE_boolean('fresh',True,'wheather recalculate the embedding or overlap default is True')
-flags.DEFINE_string('pooling','max','pooling strategy')
-flags.DEFINE_boolean('clean',True,'whether clean the data')
-# Misc Parameters
-flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
-flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
-#data_helper para
 
-flags.DEFINE_boolean('isEnglish',True,'whether data is english')
+import tensorflow as tf
+import sys
+import random
+
+sys.path.append('..')
+
+############### CMD Arguments #####################
+
+FLAGS = tf.app.flags.FLAGS
+
+tf.app.flags.DEFINE_integer("embedding_size",100,"embedding size")
+tf.app.flags.DEFINE_integer("num_epochs", 10, "Number of epochs")
+tf.app.flags.DEFINE_integer("num_classes", 2, "Number of classes")
+tf.app.flags.DEFINE_integer("batch_size", 64, "Number of batch size")
+tf.app.flags.DEFINE_float("learning_rate", 0.001, "learning rate")
+tf.app.flags.DEFINE_string("optim_type", 'adam', "optimizer type {Adam, Adagrad, GD, Momentum}")
+tf.app.flags.DEFINE_boolean("trainable",False," whether train my embedding")
+tf.app.flags.DEFINE_integer("num_threads",8,"number of threads")
+tf.app.flags.DEFINE_integer("log_steps", 1000, "save summary every steps")
+####### dir
+tf.app.flags.DEFINE_string("model_dir", 'data/model/', "model check point dir")
+tf.app.flags.DEFINE_string("servable_model_dir", '', "export servable model for TensorFlow Serving")
+tf.app.flags.DEFINE_string("data_path",'data/trec',"data set")
+tf.app.flags.DEFINE_string("train_tf_records",'data/trec/train.tfrecords','train_tf_records')
+tf.app.flags.DEFINE_string("test_tf_records",'data/trec/test.tfrecords','test_tf_records')
+tf.app.flags.DEFINE_string("dt_dir", '', "data dt partition")
+tf.app.flags.DEFINE_string("vocab_dir",'data/trec/vocab','vocab_dir of dataset')
+tf.app.flags.DEFINE_string("log_path",None,'log dir of dataset')
+tf.app.flags.DEFINE_string("embedding_dir",'data/embeddings/glove.6B.100d.txt',"embedding dir")
+
+
+tf.app.flags.DEFINE_boolean("debug", False,"use a part of the dataset")
+tf.app.flags.DEFINE_string("task_type", 'prepare', "task type {prepare,train, infer, eval, export}")
+tf.app.flags.DEFINE_boolean("clear_existing_model",True, "clear existing model or not")
