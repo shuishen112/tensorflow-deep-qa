@@ -61,8 +61,8 @@ def evaluationbyFile(modelfile,resultfile="result.text",groundtruth=qa_path):
 	subprocess.call(cmd, shell=True)
 def evaluationBypandas(df,predicted):
 	df["score"]=predicted
-	mrr= df.groupby("question").apply(mrr_metric).mean()
-	map= df.groupby("question").apply(map_metric).mean()
+	mrr= df.groupby("s1").apply(mrr_metric).mean()
+	map= df.groupby("s1").apply(map_metric).mean()
 	return map,mrr
 def precision_per(group):
 	group = sklearn.utils.shuffle(group,random_state =132)
@@ -73,7 +73,7 @@ def precision_per(group):
 	return 0
 def precision(df,predicted):
 	df["score"]=predicted
-	precision = df.groupby("question").apply(precision_per).mean()
+	precision = df.groupby("s1").apply(precision_per).mean()
 	return precision
 
 def briany_test_file(df_test,  predicted=None,mode = 'test'):
