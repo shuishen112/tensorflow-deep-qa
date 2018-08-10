@@ -17,7 +17,8 @@ tf.app.flags.DEFINE_float("learning_rate", 0.001, "learning rate")
 tf.app.flags.DEFINE_string("optim_type", 'adam', "optimizer type {Adam, Adagrad, GD, Momentum}")
 tf.app.flags.DEFINE_boolean("trainable",False," whether train my embedding")
 tf.app.flags.DEFINE_integer("num_threads",8,"number of threads")
-tf.app.flags.DEFINE_integer("log_steps", 1000, "save summary every steps")
+tf.app.flags.DEFINE_integer("log_steps", 100, "save summary every steps")
+tf.app.flags.DEFINE_string("model_type","cnn","model type")
 ####### dir
 tf.app.flags.DEFINE_string("model_dir", 'data/model/', "model check point dir")
 tf.app.flags.DEFINE_string("servable_model_dir", '', "export servable model for TensorFlow Serving")
@@ -32,4 +33,4 @@ tf.app.flags.DEFINE_string("embedding_dir",'data/embeddings/glove.6B.100d.txt',"
 
 tf.app.flags.DEFINE_boolean("debug", False,"use a part of the dataset")
 tf.app.flags.DEFINE_string("task_type", 'prepare', "task type {prepare,train, infer, eval, export}")
-tf.app.flags.DEFINE_boolean("clear_existing_model",True, "clear existing model or not")
+tf.app.flags.DEFINE_boolean("clear_existing_model",False, "clear existing model or not")

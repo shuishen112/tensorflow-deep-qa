@@ -45,7 +45,11 @@ def cut(sent):
     words = [w for w in words if w not in en_stopwords]
     return words
     # return sent.lower().split()
-
+def word_overlap(row):
+    question = cut(row["s1"]) 
+    answer = cut(row["s2"])
+    overlap = set(answer).intersection(set(question))
+    return len(overlap)
 class QA_dataset(object):
 
     def __init__(self,train_file = None,dev_file = None,test_file = None,args = None):
@@ -92,11 +96,14 @@ class QA_dataset(object):
             s1_id = np.array(row['s1_id']).tostring()
             s2_id = np.array(row['s2_id']).tostring()
             flag = row['flag']
+
+            overlap = word_overlap(row)
             example = tf.train.Example(features = tf.train.Features(
                 feature = {
                 's1_id':tf.train.Feature(bytes_list = tf.train.BytesList(value = [s1_id])),
                 's2_id':tf.train.Feature(bytes_list = tf.train.BytesList(value = [s2_id])),
-                'flag':tf.train.Feature(int64_list = tf.train.Int64List(value = [flag]))
+                'flag':tf.train.Feature(int64_list = tf.train.Int64List(value = [flag])),
+                'overlap':tf.train.Feature(int64_list = tf.train.Int64List(value = [overlap]))
                 }))
 
             writer.write(example.SerializeToString())
@@ -118,8 +125,12 @@ class QA_dataset(object):
                     for token in set(tokens):
                         word_counter[token] += 1
         word_dict = {w: index + 2 for (index, w) in enumerate(list(word_counter))}
+
         word_dict['NULL'] = 0
         word_dict['UNK'] = 1
+
+        index_to_word = {word_dict[w]: w for w in word_dict}
+        self.index_to_word = index_to_word
         self.word_dict = word_dict
 
         print('alphabet_size: {}'.format(len(self.word_dict)))
@@ -161,20 +172,8 @@ class QA_dataset(object):
         return result[:max_len]
 
 
-    def triple_pair(self,group):
-        query = group['query'].tolist()
-        pos_app = group[group['flag'] == 1]['s2']
-
-        # neg_app = group[group['flag'] == 0]['s2'].reset_index()
-        if len(pos_app) > 0:
-            for pos in pos_app:
-                neg_index = np.random.choice(self.df_neg.index)
-                neg = self.df_neg.loc[neg_index]['s2']
-                # neg = neg_app.loc[neg_index]['s2']
-                return pd.Series({'qid':self.convert_to_word_ids(query[0]),'aid':self.s2_dict[pos],'a_neg_id':self.s2_dict[neg]})
-
     def point_wise_pair(self,row):
-        return pd.Series({'s1_id':self.convert_to_word_ids(row['s1']),'s2_id':self.convert_to_word_ids(row['s2']),'flag':row['flag']})
+        return pd.Series({'s1':row['s1'],'s2':row['s2'],'s1_id':self.convert_to_word_ids(row['s1']),'s2_id':self.convert_to_word_ids(row['s2']),'flag':row['flag']})
 
     @log_time_delta
     def batch_iter_pandas(self,df,batch_size,shuffle = False,args = None):
@@ -194,13 +193,15 @@ class QA_dataset(object):
             features = {
             's1_id': tf.FixedLenFeature([],tf.string),
             's2_id':tf.FixedLenFeature([],tf.string),
-            'flag':tf.FixedLenFeature([],tf.int64)
+            'flag':tf.FixedLenFeature([],tf.int64),
+            'overlap':tf.FixedLenFeature([],tf.int64)
             })
 
         s1_id = tf.decode_raw(features['s1_id'],tf.int32)
         s2_id = tf.decode_raw(features['s2_id'],tf.int32)
         flag = features['flag']
-        return {'s1_id':s1_id,'s2_id':s2_id},flag
+        overlap = features['overlap']
+        return {'s1_id':s1_id,'s2_id':s2_id,'overlap':overlap},flag
 
     def input_fn(self,filenames, batch_size = 32, num_epochs = 1,perform_shuffle = False):
         data_set = tf.data.TFRecordDataset(filenames).map(self.get_record_parser,num_parallel_calls = cpu_count())
@@ -218,7 +219,7 @@ class QA_dataset(object):
 
     
 
-# data_path = 'data/wiki'
+# data_path = 'data/trec'
 
 # train_file = os.path.join(data_path,'train.txt')
 # test_file = os.path.join(data_path,'test.txt')
@@ -227,6 +228,8 @@ class QA_dataset(object):
 # class config(object):
 #   debug = True
 #   loss = 'pair_wise_loss'
+#   train_tf_records = 'data/trec/train.tfrecords'
+#   test_tf_records = 'data/trec/test.tfrecords'
 
 # args = config()
 # data_set = QA_dataset(train_file,dev_file,test_file,args)
@@ -237,13 +240,13 @@ class QA_dataset(object):
 # batch = data_set.batch_iter_pandas(data_set.df_train_pairs,60,shuffle = True,args = args)
 # print(data_set.df_train_pairs)
 
-# filenames = 'data/wiki/train.tfrecords'
+# filenames = 'data/trec/train.tfrecords'
 # ds = tf.data.TFRecordDataset(filenames).map(data_set.get_record_parser,num_parallel_calls = 8).prefetch(500000)
 
 
-# iterator = ds.make_one_shot_iterator()
+# # iterator = ds.make_one_shot_iterator()
 
-# next_element = iterator.get_next()
+# # next_element = iterator.get_next()
 
 # next_element = data_set.input_fn(filenames)
 

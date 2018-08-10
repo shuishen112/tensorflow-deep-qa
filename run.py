@@ -4,13 +4,40 @@ from dataset import QA_dataset
 import os
 from datetime import date,timedelta
 import tensorflow as tf
-from model.QA_CNN import Model,model_fn
+from model.QA_CNN import model_fn
+from model.QA_CNN import cnn_model_fn
 import evaluation
 import pickle
 import logging
 import shutil
 import numpy as np
 
+if FLAGS.model_type == "fnn":
+
+    model_params = {
+        "num_classes":FLAGS.num_classes,
+        "embedding_size":FLAGS.embedding_size,
+        "learning_rate":FLAGS.learning_rate,
+        "trainable":FLAGS.trainable,
+        "optim_type":FLAGS.optim_type
+    }
+elif FLAGS.model_type == 'cnn':
+
+    model_params = {
+        'query_length' : 40,
+        'app_name_length': 40,
+        'trainable': False,
+        'filter_sizes': [1,2,4],
+        'num_filters':64,
+        'optim_type':'adam',
+        'embedding_size':FLAGS.embedding_size,
+        'learning_rate':0.001,
+        'batch_size':64,
+        "trainable":FLAGS.trainable,
+        "num_classes":FLAGS.num_classes
+    }
+else:
+    pass
 def prepare():
 
     logger = logging.getLogger('QA')
@@ -26,6 +53,16 @@ def prepare():
 
     data_set = QA_dataset(train_file,dev_file,test_file,FLAGS)
     data_set.get_alphabet([data_set.train_set,data_set.test_set])
+
+    # with open ('index_to_word','w',encoding = 'utf-8') as fout:
+    #     for index in data_set.index_to_word:
+            
+    #         line = str(index) + '\t' + data_set.index_to_word[index] + '\n'
+
+    #         fout.write(line)
+
+    
+
     data_set.process_pairs()
 
     embeddings = data_set.get_embedding(FLAGS.embedding_dir,data_set.word_dict,dim = FLAGS.embedding_size)
@@ -66,55 +103,21 @@ def train():
 
     data_set = QA_dataset(None,None,None,FLAGS)
 
-    model = Model(vocab['embeddings'])
 
-    model_params = {
-        "num_classes":FLAGS.num_classes,
-        "embedding_size":FLAGS.embedding_size,
-        "learning_rate":FLAGS.learning_rate,
-        "trainable":FLAGS.trainable,
-        "optim_type":FLAGS.optim_type,
-        "vocab_size": len(vocab['embeddings'])
-    }
+    model_params["vocab_size"] = len(vocab['embeddings'])
+    model_params["embeddings"] = vocab["embeddings"]
+    
 
     config = tf.estimator.RunConfig().replace(session_config = tf.ConfigProto(device_count={'GPU':0, 'CPU':FLAGS.num_threads}),
                 log_step_count_steps=FLAGS.log_steps, save_summary_steps=FLAGS.log_steps)
 
-    QA_CNN = tf.estimator.Estimator(model_fn = model.model_fn, model_dir=FLAGS.model_dir, params=model_params, config=config)
+    QA_CNN = tf.estimator.Estimator(model_fn = cnn_model_fn, model_dir=FLAGS.model_dir, params=model_params, config=config)
 
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda: data_set.input_fn(FLAGS.train_tf_records, num_epochs=FLAGS.num_epochs, batch_size=FLAGS.batch_size))
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda: data_set.input_fn(FLAGS.train_tf_records, num_epochs=FLAGS.num_epochs, batch_size=FLAGS.batch_size,perform_shuffle = True))
     eval_spec = tf.estimator.EvalSpec(input_fn=lambda: data_set.input_fn(FLAGS.test_tf_records, num_epochs=1, batch_size=FLAGS.batch_size), steps=None, start_delay_secs=1000, throttle_secs=1200)
     tf.estimator.train_and_evaluate(QA_CNN, train_spec, eval_spec)
 
-def evaluate():
 
-    logger = logging.getLogger('QA')
-    logger.info('load vocab')
-
-    if FLAGS.dt_dir == "":
-        FLAGS.dt_dir = (date.today() + timedelta(-1)).strftime('%Y%m%d')
-        FLAGS.model_dir = FLAGS.model_dir + FLAGS.dt_dir
-
-    with open(os.path.join(FLAGS.vocab_dir,'vocab.data'),'rb') as fin:
-        vocab = pickle.load(fin)
-
-    data_set = QA_dataset(None,None,None,FLAGS) 
-    model = Model(vocab['embeddings'])
-
-    model_params = {
-        "num_classes":FLAGS.num_classes,
-        "embedding_size":FLAGS.embedding_size,
-        "learning_rate":FLAGS.learning_rate,
-        "trainable":FLAGS.trainable,
-        "optim_type":FLAGS.optim_type,
-        "vocab_size": len(vocab['embeddings'])
-    }
-
-    config = tf.estimator.RunConfig().replace(session_config = tf.ConfigProto(device_count={'GPU':0, 'CPU':FLAGS.num_threads}),
-                log_step_count_steps=FLAGS.log_steps, save_summary_steps=FLAGS.log_steps)
-    QA_CNN = tf.estimator.Estimator(model_fn = model.model_fn, model_dir=FLAGS.model_dir, params=model_params, config=config)
-
-    QA_CNN.evaluate(input_fn=lambda: data_set.input_fn(FLAGS.test_tf_records, num_epochs=1, batch_size=FLAGS.batch_size))
 
 def predict():
 
@@ -131,20 +134,14 @@ def predict():
     with open(os.path.join(FLAGS.vocab_dir,'vocab.data'),'rb') as fin:
         vocab = pickle.load(fin)
 
+    model_params["vocab_size"] = len(vocab['embeddings'])
+    model_params["embeddings"] = vocab["embeddings"]
     data_set = QA_dataset(None,None,test_file,FLAGS) 
-    model = Model(vocab['embeddings'])
 
-    model_params = {
-        "num_classes":FLAGS.num_classes,
-        "embedding_size":FLAGS.embedding_size,
-        "learning_rate":FLAGS.learning_rate,
-        "trainable":FLAGS.trainable,
-        "optim_type":FLAGS.optim_type,
-        "vocab_size": len(vocab['embeddings'])
-    }
+    
     config = tf.estimator.RunConfig().replace(session_config = tf.ConfigProto(device_count={'GPU':0, 'CPU':FLAGS.num_threads}),
                 log_step_count_steps=FLAGS.log_steps, save_summary_steps=FLAGS.log_steps)
-    QA_CNN = tf.estimator.Estimator(model_fn = model.model_fn, model_dir=FLAGS.model_dir, params=model_params, config=config)
+    QA_CNN = tf.estimator.Estimator(model_fn = cnn_model_fn, model_dir=FLAGS.model_dir, params=model_params, config=config)
 
     preds = QA_CNN.predict(input_fn=lambda: data_set.input_fn(FLAGS.test_tf_records, num_epochs=1, batch_size=FLAGS.batch_size), predict_keys=["prob",'score'])
     # list_pred = list(map(lambda x:x['prob'],preds))
