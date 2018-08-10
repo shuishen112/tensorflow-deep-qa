@@ -19,6 +19,8 @@ map mrr = (0.68,0.73) map,mrr = (0.71,0.77) 一般可以提升2个点左右，�
     - unigram
     - unigram+count
 - [Learning to Rank Short Text Pairs with Convolutional Deep Neural Networks](http://disi.unitn.it/~severyn/papers/sigir-2015-long.pdf)
+    - cnn
+    - cnn+interaction
 
 - [Attentive Pooling Networks](https://arxiv.org/abs/1602.03609)
 
@@ -66,7 +68,13 @@ map mrr = (0.68,0.73) map,mrr = (0.71,0.77) 一般可以提升2个点左右，�
     | data | map | mrr |
     | :--- | :----: | ----: |
     | trec | 0.72 | 0.76 |
-    | trec-all | 0.658 | 0.67  |
+    | trec-all | 0.73 | 0.77  |
+
+- cnn
+    | data | map | mrr |
+    | :--- | :----: | ----: |
+    | trec | 0.73 | 0.76 |
+    | trec-all | 0.73 | 0.78 |
     
 <!-- and i don't think the similarity layer promote the result
 
