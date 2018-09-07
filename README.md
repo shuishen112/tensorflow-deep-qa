@@ -74,9 +74,16 @@ map mrr = (0.68,0.73) map,mrr = (0.71,0.77) 一般可以提升2个点左右，�
 
     | data | map | mrr |
     | :--- | :----: | ----: |
-    | trec | 0.73 | 0.76 |
+    | trec | 0.75 | 0.79 |
     | trec-all | 0.73 | 0.78 |
-    
+
+##Model Detail
+
+    unigram
+
+---
+![avatar](figure/unigram.png)
+
 <!-- and i don't think the similarity layer promote the result
 
 

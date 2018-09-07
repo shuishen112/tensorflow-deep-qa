@@ -18,15 +18,14 @@ tqdm.pandas(tqdm,leave = True)
 nlp = spacy.blank("en")
 
 def removeUnanswerdQuestion(df):
-    counter= df.groupby("question").apply(lambda group: sum(group["flag"]))
+    counter= df.groupby("s1").apply(lambda group: sum(group["flag"]))
     questions_have_correct=counter[counter>0].index
-    counter= df.groupby("question").apply(lambda group: sum(group["flag"]==0))
+    counter= df.groupby("s1").apply(lambda group: sum(group["flag"]==0))
     questions_have_uncorrect=counter[counter>0].index
-    counter=df.groupby("question").apply(lambda group: len(group["flag"]))
+    counter=df.groupby("s1").apply(lambda group: len(group["flag"]))
     questions_multi=counter[counter>1].index
 
-    return df[df["question"].isin(questions_have_correct) &  df["question"].isin(questions_have_correct) & df["question"].isin(questions_have_uncorrect)].reset_index()
-
+    return df[df["s1"].isin(questions_have_correct) &  df["s1"].isin(questions_have_correct) & df["s1"].isin(questions_have_uncorrect)].reset_index()
 # calculate the time
 def log_time_delta(func):
     @wraps(func)
@@ -110,9 +109,11 @@ class QA_dataset(object):
         writer.close()
 
     def load_data(self,data_path):
-        data = pd.read_csv(data_path,sep = '\t',names = ['s1','s2','flag'],quoting = 3).dropna()
+        data = pd.read_csv(data_path,sep = '\t',names = ['s1','s2','flag'],quoting = 3)
         if self.args.debug:
             data = data[:1000]
+        if self.args.clean:
+            data = removeUnanswerdQuestion(data)
         return data
 
     @log_time_delta
@@ -174,6 +175,21 @@ class QA_dataset(object):
 
     def point_wise_pair(self,row):
         return pd.Series({'s1':row['s1'],'s2':row['s2'],'s1_id':self.convert_to_word_ids(row['s1']),'s2_id':self.convert_to_word_ids(row['s2']),'flag':row['flag']})
+
+    # noting that the code here is different from the previous code
+    def triple_pair(self,group):
+        question = group['s1'].tolist()
+        pos_answer = group[group['flag'] == 1]['s2']
+        neg_answer = group[group['flag'] == 0]['s2'].reset_index()
+
+        if len(pos_answer) > 0:
+            for pos in pos_answer:
+                neg_index = np.random.choice(neg_answer)
+                neg = neg_answer.loc[neg_index]['s2']
+
+                return pd.Series({'s1_id':self.convert_to_word_ids(question[0]),
+                    's2_pos_id':self.convert_to_word_ids(pos),
+                    's2_neg_id':self.convert_to_word_ids(neg)})
 
     @log_time_delta
     def batch_iter_pandas(self,df,batch_size,shuffle = False,args = None):

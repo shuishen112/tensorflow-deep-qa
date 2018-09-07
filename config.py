@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_string("vocab_dir",'data/trec/vocab','vocab_dir of dataset')
 tf.app.flags.DEFINE_string("log_path",None,'log dir of dataset')
 tf.app.flags.DEFINE_string("embedding_dir",'data/embeddings/glove.6B.100d.txt',"embedding dir")
 
-
 tf.app.flags.DEFINE_boolean("debug", False,"use a part of the dataset")
+tf.app.flags.DEFINE_boolean("clean",False,"use the clean version")
 tf.app.flags.DEFINE_string("task_type", 'prepare', "task type {prepare,train, infer, eval, export}")
-tf.app.flags.DEFINE_boolean("clear_existing_model",False, "clear existing model or not")
+tf.app.flags.DEFINE_boolean("clear_existing_model",True, "clear existing model or not")

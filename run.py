@@ -6,6 +6,7 @@ from datetime import date,timedelta
 import tensorflow as tf
 from model.QA_CNN import model_fn
 from model.QA_CNN import cnn_model_fn
+from model.QA_CNN import cnn_quantum_fn
 import evaluation
 import pickle
 import logging
@@ -27,7 +28,7 @@ elif FLAGS.model_type == 'cnn':
         'query_length' : 40,
         'app_name_length': 40,
         'trainable': False,
-        'filter_sizes': [1,2,4],
+        'filter_sizes': [3,4,5],
         'num_filters':64,
         'optim_type':'adam',
         'embedding_size':FLAGS.embedding_size,
@@ -38,6 +39,7 @@ elif FLAGS.model_type == 'cnn':
     }
 else:
     pass
+    
 def prepare():
 
     logger = logging.getLogger('QA')
@@ -109,11 +111,11 @@ def train():
     
 
     config = tf.estimator.RunConfig().replace(session_config = tf.ConfigProto(device_count={'GPU':0, 'CPU':FLAGS.num_threads}),
-                log_step_count_steps=FLAGS.log_steps, save_summary_steps=FLAGS.log_steps)
+                log_step_count_steps=FLAGS.log_steps, save_summary_steps = FLAGS.log_steps)
 
-    QA_CNN = tf.estimator.Estimator(model_fn = cnn_model_fn, model_dir=FLAGS.model_dir, params=model_params, config=config)
+    QA_CNN = tf.estimator.Estimator(model_fn = cnn_model_fn, model_dir = FLAGS.model_dir, params = model_params, config=config)
 
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda: data_set.input_fn(FLAGS.train_tf_records, num_epochs=FLAGS.num_epochs, batch_size=FLAGS.batch_size,perform_shuffle = True))
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda: data_set.input_fn(FLAGS.train_tf_records, num_epochs=FLAGS.num_epochs, batch_size=FLAGS.batch_size,perform_shuffle = True),max_steps = 20000)
     eval_spec = tf.estimator.EvalSpec(input_fn=lambda: data_set.input_fn(FLAGS.test_tf_records, num_epochs=1, batch_size=FLAGS.batch_size), steps=None, start_delay_secs=1000, throttle_secs=1200)
     tf.estimator.train_and_evaluate(QA_CNN, train_spec, eval_spec)
 
@@ -150,6 +152,7 @@ def predict():
 
     random_pred = np.random.rand(len(data_set.test_set))
     print('random:{}\n'.format(evaluation.evaluationBypandas(data_set.test_set,random_pred)))
+
     print(evaluation.evaluationBypandas(data_set.test_set,score))
 
     # data_set.test_set['pred'] = list_pred

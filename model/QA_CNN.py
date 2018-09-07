@@ -18,7 +18,7 @@ def model_fn(features,labels,mode,params):
     ############# fully_connected NN ###################
     with tf.name_scope('neural_network'):
         feature = tf.concat(
-          [q_emb,a_emb,tf.expand_dims(tf.cast(overlap,tf.float64),-1)], 1, name = 'feature')
+          [q_emb,a_emb], 1, name = 'feature')
 
         first_hidden_layer = tf.contrib.layers.fully_connected(feature,100, activation_fn = tf.nn.relu)
         second_hidden_layer = tf.contrib.layers.fully_connected(first_hidden_layer, 10, activation_fn=tf.nn.relu)
@@ -131,6 +131,114 @@ def cnn_model_fn(features,labels,mode,params):
     ############# fully_connected NN ###################
     with tf.name_scope('neural_network'):
         feature = tf.concat(
+          [query_encode,app_encode], 1, name = 'feature')
+
+        first_hidden_layer = tf.contrib.layers.fully_connected(feature,100, activation_fn = tf.sigmoid)
+        # second_hidden_layer = tf.contrib.layers.fully_connected(first_hidden_layer, 10, activation_fn=tf.nn.relu)
+
+        logits = tf.contrib.layers.fully_connected(first_hidden_layer,2,activation_fn = None)
+        scores = tf.nn.softmax(logits)
+        pred = tf.argmax(logits, 1, name='predictions') 
+
+    predictions = {"prob":pred,'score':scores[:,1]}
+    if mode == tf.estimator.ModeKeys.PREDICT:
+        return tf.estimator.EstimatorSpec(
+            mode = mode,
+            predictions = predictions)
+
+    ############ loss ######################
+    one_hot_labels = tf.one_hot(y, params['num_classes'])
+
+    losses = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+        logits = logits, labels = one_hot_labels))
+
+    loss = tf.reduce_mean(losses)
+
+
+    ############ train and eval
+
+    optimizer = tf.train.AdagradOptimizer(params['learning_rate'])
+    train_op = optimizer.minimize(loss,global_step = tf.train.get_global_step())
+    accuracy = tf.metrics.accuracy(labels= y,
+                               predictions=pred,
+                               name='acc_op')
+    metrics = {"accuracy":accuracy}
+    tf.summary.scalar('accuracy',accuracy[1])
+
+    if mode == tf.estimator.ModeKeys.EVAL:
+        return tf.estimator.EstimatorSpec(
+            mode = mode,
+            loss = loss,
+            eval_metric_ops = metrics)
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        return tf.estimator.EstimatorSpec(
+            mode = mode,
+            loss = loss,
+            train_op = train_op)
+
+
+def cnn_quantum_fn(features,labels,mode,params):
+    question = features['s1_id']
+    answer = features['s2_id']
+    overlap = features['overlap']
+    y = labels
+    #############get embedding####################
+
+    word_embeddings = tf.Variable(
+        params['embeddings'],trainable = False,name = 'fixed_embedding')
+
+    q_emb = tf.nn.embedding_lookup(word_embeddings,question)
+    a_emb = tf.nn.embedding_lookup(word_embeddings,answer)
+
+    ############# convolution encoding ############
+
+    with tf.name_scope("cnn_encoding"):
+        q_emb = tf.expand_dims(q_emb,-1)
+        a_emb = tf.expand_dims(a_emb,-1)
+
+        outputs_q = []
+        outputs_a = []
+        for i,filter_size in enumerate(params['filter_sizes']):
+            with tf.name_scope('conv-pool-%s' % filter_size):
+                kernel_size = [filter_size,params['embedding_size']]
+                # encode the query
+                conv1 = tf.layers.conv2d(q_emb,params['num_filters'],strides = [1,1],
+                    kernel_size = [filter_size,params['embedding_size']],
+                    padding = 'VALID',
+                    reuse = None,
+                    activation = tf.nn.relu,
+                    name = 'conv_{}'.format(str(filter_size))
+                    )
+
+                pool1 = tf.reduce_mean(conv1,1,keep_dims = True)
+                outputs_q.append(pool1)
+                # encode the app_name notice that the reuse will make the query
+                # and app share the parameters
+                conv2 = tf.layers.conv2d(a_emb,params['num_filters'],strides = [1,1],
+                    kernel_size = [filter_size,params['embedding_size']],
+                    padding = 'VALID',
+                    reuse = True,
+                    activation = tf.nn.relu,
+                    name = 'conv_{}'.format(str(filter_size))
+                    )
+
+                pool2 = tf.reduce_mean(conv2,1,keep_dims = True)
+                outputs_a.append(pool2)
+
+        #output concat
+
+        num_filters_total = params['num_filters'] * len(params['filter_sizes'])
+
+        h_pool_q = tf.concat(outputs_q,3)
+        h_pool_a = tf.concat(outputs_a,3)
+
+        query_encode = tf.reshape(h_pool_q,[-1,num_filters_total])
+        app_encode = tf.reshape(h_pool_a,[-1,num_filters_total])
+
+
+    ############# fully_connected NN ###################
+    with tf.name_scope('neural_network'):
+        feature = tf.concat(
           [query_encode,app_encode,tf.expand_dims(tf.cast(overlap,tf.float64),-1)], 1, name = 'feature')
 
         first_hidden_layer = tf.contrib.layers.fully_connected(feature,100, activation_fn = tf.sigmoid)
@@ -175,6 +283,10 @@ def cnn_model_fn(features,labels,mode,params):
             mode = mode,
             loss = loss,
             train_op = train_op)
+
+
+
+# def cnn_
 # class Model(object):
 
 #     def __init__(self,embeddings):
