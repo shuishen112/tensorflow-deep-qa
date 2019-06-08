@@ -10,6 +10,7 @@ from functools import wraps
 import time
 import spacy
 import tensorflow as tf
+tf.enable_eager_execution()
 from multiprocessing import Pool, cpu_count
 from nltk.corpus import stopwords
 en_stopwords = stopwords.words('english')
@@ -90,21 +91,31 @@ class QA_dataset(object):
         self.build_feature(self.df_test_pairs, tfrecords_filename_test)
     def build_feature(self,df,tf_file_name):
 
+        def _bytes_feature(value):
+            return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+        def _float_feature(value):
+            return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+
+        def _int64_feature(value):
+            return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+        
+
         writer = tf.python_io.TFRecordWriter(tf_file_name)
         for index,row in df.iterrows():
             s1_id = np.array(row['s1_id']).tostring()
             s2_id = np.array(row['s2_id']).tostring()
             flag = row['flag']
-
             overlap = word_overlap(row)
-            example = tf.train.Example(features = tf.train.Features(
-                feature = {
-                's1_id':tf.train.Feature(bytes_list = tf.train.BytesList(value = [s1_id])),
-                's2_id':tf.train.Feature(bytes_list = tf.train.BytesList(value = [s2_id])),
-                'flag':tf.train.Feature(int64_list = tf.train.Int64List(value = [flag])),
+            feature = {
+                's1_id':_bytes_feature(s1_id),
+                's2_id':_bytes_feature(s2_id),
+                'flag':_int64_feature(flag),
                 'overlap':tf.train.Feature(int64_list = tf.train.Int64List(value = [overlap]))
-                }))
-
+            }
+            
+            example = tf.train.Example(features=tf.train.Features(feature=feature))
             writer.write(example.SerializeToString())
         writer.close()
 
@@ -114,6 +125,7 @@ class QA_dataset(object):
             data = data[:1000]
         if self.args.clean:
             data = removeUnanswerdQuestion(data)
+        print(data)
         return data
 
     @log_time_delta
@@ -205,16 +217,18 @@ class QA_dataset(object):
             yield(b['s1_id'].tolist(),b['s2_id'].tolist(),b['flag'].tolist())
 
     def get_record_parser(self,serialized_example):
-        features = tf.parse_single_example(serialized_example,
-            features = {
-            's1_id': tf.FixedLenFeature([],tf.string),
-            's2_id':tf.FixedLenFeature([],tf.string),
-            'flag':tf.FixedLenFeature([],tf.int64),
-            'overlap':tf.FixedLenFeature([],tf.int64)
-            })
 
-        s1_id = tf.decode_raw(features['s1_id'],tf.int32)
-        s2_id = tf.decode_raw(features['s2_id'],tf.int32)
+        features = {
+            's1_id': tf.FixedLenFeature([],tf.string,default_value = ''),
+            's2_id':tf.FixedLenFeature([],tf.string,default_value = ''),
+            'flag':tf.FixedLenFeature([],tf.int64,default_value = 0),
+            'overlap':tf.FixedLenFeature([],tf.int64)
+            }
+
+        features = tf.parse_single_example(serialized_example,features)
+
+        s1_id = tf.decode_raw(features['s1_id'],tf.int64)
+        s2_id = tf.decode_raw(features['s2_id'],tf.int64)
         flag = features['flag']
         overlap = features['overlap']
         return {'s1_id':s1_id,'s2_id':s2_id,'overlap':overlap},flag
@@ -243,6 +257,7 @@ class QA_dataset(object):
 
 # class config(object):
 #   debug = True
+#   clean = False
 #   loss = 'pair_wise_loss'
 #   train_tf_records = 'data/trec/train.tfrecords'
 #   test_tf_records = 'data/trec/test.tfrecords'
@@ -251,18 +266,36 @@ class QA_dataset(object):
 # data_set = QA_dataset(train_file,dev_file,test_file,args)
 # data_set.get_alphabet([data_set.train_set,data_set.test_set])
 
-# # print(data_set.word_dict)
 # data_set.process_pairs()
-# batch = data_set.batch_iter_pandas(data_set.df_train_pairs,60,shuffle = True,args = args)
-# print(data_set.df_train_pairs)
+# # batch = data_set.batch_iter_pandas(data_set.df_train_pairs,60,shuffle = True,args = args)
+# # print(data_set.df_train_pairs)
 
 # filenames = 'data/trec/train.tfrecords'
-# ds = tf.data.TFRecordDataset(filenames).map(data_set.get_record_parser,num_parallel_calls = 8).prefetch(500000)
+# ds = tf.data.TFRecordDataset(filenames)
 
+# feature_description = {
+#             's1_id': tf.FixedLenFeature([],tf.string,default_value = ''),
+#             's2_id':tf.FixedLenFeature([],tf.string,default_value = ''),
+#             'flag':tf.FixedLenFeature([],tf.int64,default_value = 0)
+#             # 'overlap':tf.FixedLenFeature([],tf.int64)
+# }
+# def _parse_function(example_proto):
+#     # Parse the input tf.Example proto using the dictionary above.
+#     parsed_data = tf.parse_single_example(example_proto, feature_description)
+#     # note that this out_type is very strange
+#     s1_id = tf.decode_raw(parsed_data['s1_id'],out_type = tf.int64)
+#     s2_id = tf.decode_raw(parsed_data['s2_id'],out_type = tf.int64)
+#     return s1_id,s2_id
 
-# # iterator = ds.make_one_shot_iterator()
+# parsed_dataset = ds.map(_parse_function)
 
-# # next_element = iterator.get_next()
+# for parsed_record in parsed_dataset:
+#     print(parsed_record)
+    
+# iterator = ds.make_one_shot_iterator()
+
+# next_element = iterator.get_next()
+# print(next_element)
 
 # next_element = data_set.input_fn(filenames)
 

@@ -32,6 +32,8 @@ map mrr = (0.68,0.73) map,mrr = (0.71,0.77) 一般可以提升2个点左右，�
 
 - Tensorflow = 1.8
 
+- jieba
+- spacy
 ## Processing
 
 
@@ -45,7 +47,6 @@ map mrr = (0.68,0.73) map,mrr = (0.71,0.77) 一般可以提升2个点左右，�
 ```
 
 ## test
-```
 ./run.py --task_type infer
 ```
 
