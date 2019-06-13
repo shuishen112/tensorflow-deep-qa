@@ -125,7 +125,6 @@ class QA_dataset(object):
             data = data[:1000]
         if self.args.clean:
             data = removeUnanswerdQuestion(data)
-        print(data)
         return data
 
     @log_time_delta
@@ -150,26 +149,29 @@ class QA_dataset(object):
         return word_dict
         # print(self.query_dict)
     def get_embedding(self,fname,vocab,dim = 100):
-        embeddings = np.random.normal(0,1,size = [len(vocab),dim])
-
-        word_vecs = {}
-        count = 0
-        with open(fname,encoding = 'utf-8') as f:
-            i = 0
-            for line in f:
-                i += 1
-                if i % 100000 == 0:
-                    print ('epch %d' % i)
-                items = line.strip().split(' ')
-                if len(items) == 2:
-                  vocab_size, embedding_size = items[0], items[1]
-                  print (vocab_size, embedding_size)
-                else:
-                  word = items[0]
-                  if word in vocab:
-                    count += 1
-                    embeddings[vocab[word]] = items[1:]
-        print('there are {} words can be found in dict'.format(count))
+        print(fname)
+        if fname is None: 
+            print("embedding is random")
+            embeddings = np.random.normal(0,1,size = [len(vocab),dim])
+        else:
+            word_vecs = {}
+            count = 0
+            with open(fname,encoding = 'utf-8') as f:
+                i = 0
+                for line in f:
+                    i += 1
+                    if i % 100000 == 0:
+                        print ('epch %d' % i)
+                    items = line.strip().split(' ')
+                    if len(items) == 2:
+                        vocab_size, embedding_size = items[0], items[1]
+                        print (vocab_size, embedding_size)
+                    else:
+                        word = items[0]
+                        if word in vocab:
+                            count += 1
+                            embeddings[vocab[word]] = items[1:]
+            print('there are {} words can be found in dict'.format(count))
         return embeddings
 
     def convert_to_word_ids(self,sentence,max_len = 40):

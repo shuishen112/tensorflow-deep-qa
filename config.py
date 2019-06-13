@@ -2,7 +2,9 @@
 import tensorflow as tf
 import sys
 import random
+import os
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 sys.path.append('..')
 
 ############### CMD Arguments #####################
@@ -28,7 +30,10 @@ tf.app.flags.DEFINE_string("test_tf_records",'data/trec/test.tfrecords','test_tf
 tf.app.flags.DEFINE_string("dt_dir", '', "data dt partition")
 tf.app.flags.DEFINE_string("vocab_dir",'data/trec/vocab','vocab_dir of dataset')
 tf.app.flags.DEFINE_string("log_path",None,'log dir of dataset')
-tf.app.flags.DEFINE_string("embedding_dir",'data/embeddings/glove.6B.100d.txt',"embedding dir")
+tf.app.flags.DEFINE_string("embedding_dir",None,"embedding dir")
+# --task_type=train --model_dir= 'data/ceph/zhansu/data/model' --data_path = 'data/ceph/zhansu/data/trec'
+# --train_tf_records='data/ceph/zhansu/data/train_tf_records' --test_tf_records='data/ceph/zhansu/data/test_tf_records'
+# --vocab_dir="data/ceph/zhansu/data/trec/vocab" --embedding_dir='data/ceph/zhansu/embedding/glove.6B.100d.txt'
 
 tf.app.flags.DEFINE_boolean("debug", False,"use a part of the dataset")
 tf.app.flags.DEFINE_boolean("clean",False,"use the clean version")

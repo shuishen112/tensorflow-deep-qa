@@ -184,6 +184,7 @@ def main(_):
     if FLAGS.task_type == 'prepare':
         prepare()
     elif FLAGS.task_type == 'train':
+        prepare()
         train()
     elif FLAGS.task_type == 'infer':
         predict()
